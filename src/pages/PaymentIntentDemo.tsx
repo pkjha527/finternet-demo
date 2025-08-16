@@ -4,6 +4,7 @@ import { BridgeButton, TransferButton, useNexus } from '@avail-project/nexus/ui'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Label } from '../components/ui/label'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog'
 import { evaluatePreTx } from '../lib/rules/engine.min'
 import { getAvailableTestWallets } from '../lib/rules/mockValidationEngine'
 import { useNexusTransfer } from '../hooks/useNexusTransfer'
@@ -22,8 +23,8 @@ export default function PaymentIntentDemo() {
   const [sender, setSender] = useState<Party>({
     label: 'Sender',
     wallet: '', // Will be set when wallet connects
-    kycLevel: 'Full',
-    isSanctioned: false,
+    kycLevel: 'None',
+    isSanctioned: true, // true indicates "pending verification"
   })
   const [receiver, setReceiver] = useState<Party>({
     label: 'Receiver',
@@ -45,26 +46,43 @@ export default function PaymentIntentDemo() {
   const [currentStep, setCurrentStep] = useState<
     'setup' | 'validation' | 'transfer'
   >('setup')
+  const [showWalletPopup, setShowWalletPopup] = useState(false)
 
   // Effect to handle wallet connection and update sender state
   useEffect(() => {
     if (wallets.length > 0 && wallets[0]?.address) {
-      // Update sender with connected wallet address
-      setSender((prev) => ({
-        ...prev,
+      // Update sender with connected wallet address and set as compliant
+      const newSenderState = {
+        label: 'Sender' as const,
         wallet: wallets[0].address,
-      }))
+        kycLevel: 'Full' as const, // Connected wallet is treated as compliant
+        isSanctioned: false, // Connected wallet is treated as clear
+      }
+      setSender(newSenderState)
 
-      // Setup provider if not already set
+      // Setup provider if not already set (only when wallet is actually connected)
       if (!provider) {
         setupProvider()
       }
-    } else {
-      // Clear sender wallet when no wallet is connected
-      setSender((prev) => ({
-        ...prev,
+
+      // Close wallet connection popup when wallet is connected
+      setShowWalletPopup(false)
+    } else if (wallets.length > 0 && !wallets[0]?.address) {
+      // Wallet object exists but no address - treat as not connected
+      setSender({
+        label: 'Sender',
         wallet: '',
-      }))
+        kycLevel: 'None',
+        isSanctioned: true, // true indicates "pending verification"
+      })
+    } else {
+      // Reset entire sender state when no wallet is connected
+      setSender({
+        label: 'Sender',
+        wallet: '',
+        kycLevel: 'None',
+        isSanctioned: true, // true indicates "pending verification"
+      })
     }
   }, [wallets, provider])
 
@@ -118,6 +136,10 @@ export default function PaymentIntentDemo() {
     }
   }
 
+  const openWalletConnectionPopup = () => {
+    setShowWalletPopup(true)
+  }
+
   const setupProvider = async () => {
     if (wallets.length > 0) {
       try {
@@ -132,9 +154,9 @@ export default function PaymentIntentDemo() {
   const renderSetupStep = () => (
     <div className="space-y-6">
       <div className="text-center">
-        <h1 className="text-3xl font-bold mb-2">Setup Transfer</h1>
+        <h1 className="text-3xl font-bold mb-2">Finternet Compliance Demo</h1>
         <p className="text-lg text-muted-foreground">
-          Configure sender and receiver details for USDC ↔ USDT transfer
+          Configure sender and receiver details for USDC ↔ USDT transfer with Finternet compliance rules
         </p>
       </div>
 
@@ -144,7 +166,7 @@ export default function PaymentIntentDemo() {
           <CardTitle>Wallet Connection</CardTitle>
         </CardHeader>
         <CardContent>
-          {!authenticated ? (
+          {!authenticated || wallets.length === 0 ? (
             <WalletConnection />
           ) : (
             <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg font-serif">
@@ -173,32 +195,57 @@ export default function PaymentIntentDemo() {
                 </span>
               </div>
             ) : (
-              <div className="p-2 bg-gray-50 border border-gray-200 rounded-md">
-                <span className="text-gray-500">
-                  Connect wallet to set sender address
-                </span>
+              <div 
+                className="p-2 bg-gray-50 border border-gray-200 rounded-md cursor-pointer hover:bg-gray-100 transition-colors"
+                onClick={openWalletConnectionPopup}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500 hover:text-gray-700">
+                    Connect wallet to set sender address
+                  </span>
+                  <span className="text-blue-500 text-sm">Click to connect →</span>
+                </div>
               </div>
             )}
             <p className="text-sm text-muted-foreground mt-1">
-              Your connected wallet - automatically treated as compliant (Full
-              KYC, no sanctions)
+              {sender.wallet 
+                ? 'Your connected wallet - automatically treated as compliant (Full KYC, no sanctions)'
+                : 'Connect your wallet to verify KYC level and sanctions status'
+              }
             </p>
+
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>KYC Level</Label>
-              <div className="p-2 bg-green-50 rounded border border-green-200">
-                <span className="font-medium text-green-600">
-                  {sender.wallet ? 'Full' : 'Pending'}
+              <div className={`p-2 rounded border ${
+                sender.wallet 
+                  ? 'bg-green-50 border-green-200' 
+                  : 'bg-yellow-50 border-yellow-200'
+              }`}>
+                <span className={`font-medium ${
+                  sender.wallet 
+                    ? 'text-green-600' 
+                    : 'text-yellow-600'
+                }`}>
+                  {sender.wallet ? 'Full' : 'None'}
                 </span>
               </div>
             </div>
             <div>
               <Label>Sanctions Status</Label>
-              <div className="p-2 bg-green-50 rounded border border-green-200">
-                <span className="font-medium text-green-600">
-                  {sender.wallet ? 'Clear' : 'Pending'}
+              <div className={`p-2 rounded border ${
+                sender.wallet 
+                  ? 'bg-green-50 border-green-200' 
+                  : 'bg-yellow-50 border-yellow-200'
+              }`}>
+                <span className={`font-medium ${
+                  sender.wallet 
+                    ? 'text-green-600' 
+                    : 'text-yellow-600'
+                }`}>
+                  {sender.wallet ? 'Clear' : 'Pending Verification'}
                 </span>
               </div>
             </div>
@@ -330,14 +377,14 @@ export default function PaymentIntentDemo() {
                   <span
                     className={`font-medium ${
                       !sender.wallet
-                        ? 'text-gray-500'
+                        ? 'text-yellow-600'
                         : sender.kycLevel === 'Full'
                           ? 'text-green-600'
                           : 'text-red-600'
                     }`}
                   >
                     {!sender.wallet
-                      ? 'Pending'
+                      ? 'None'
                       : sender.kycLevel === 'Full'
                         ? '✅ PASS'
                         : '❌ FAIL'}
@@ -348,14 +395,14 @@ export default function PaymentIntentDemo() {
                   <span
                     className={`font-medium ${
                       !sender.wallet
-                        ? 'text-gray-500'
+                        ? 'text-yellow-600'
                         : !sender.isSanctioned
                           ? 'text-green-600'
                           : 'text-red-600'
                     }`}
                   >
                     {!sender.wallet
-                      ? 'Pending'
+                      ? 'Pending Verification'
                       : !sender.isSanctioned
                         ? '✅ PASS'
                         : '❌ FAIL'}
@@ -392,7 +439,7 @@ export default function PaymentIntentDemo() {
             {!sender.wallet ? (
               <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-yellow-700 text-sm font-medium">
-                  ⚠️ Please connect your wallet first to proceed.
+                  ⚠️ Please connect your wallet first to verify KYC level and sanctions status.
                 </p>
               </div>
             ) : sender.kycLevel === 'Full' &&
@@ -456,12 +503,13 @@ export default function PaymentIntentDemo() {
               !receiver.isSanctioned
             )
           }
+
           className="w-full"
         >
           {!authenticated
             ? 'Connect Wallet First'
             : !sender.wallet
-              ? 'Wallet Not Connected'
+              ? 'Connect Wallet to Verify Compliance'
               : isValidating
                 ? 'Validating Compliance...'
                 : sender.kycLevel === 'Full' &&
@@ -470,6 +518,7 @@ export default function PaymentIntentDemo() {
                     !receiver.isSanctioned
                   ? 'Validate & Continue →'
                   : 'Fix Compliance Issues First'}
+
         </Button>
 
         {/* Show validation errors if they exist */}
@@ -515,9 +564,9 @@ export default function PaymentIntentDemo() {
   const renderValidationStep = () => (
     <div className="space-y-6">
       <div className="text-center">
-        <h1 className="text-3xl font-bold mb-2">Compliance Validation</h1>
+        <h1 className="text-3xl font-bold mb-2">Finternet Compliance Validation</h1>
         <p className="text-lg text-muted-foreground">
-          Compliance rules have been validated successfully
+          Finternet compliance rules have been validated successfully
         </p>
       </div>
 
@@ -637,9 +686,9 @@ export default function PaymentIntentDemo() {
   const renderTransferStep = () => (
     <div className="space-y-6">
       <div className="text-center">
-        <h1 className="text-3xl font-bold mb-2">Execute Transfer</h1>
+        <h1 className="text-3xl font-bold mb-2">Execute Finternet-Compliant Transfer</h1>
         <p className="text-lg text-muted-foreground">
-          Use Nexus UI to complete the USDC ↔ USDT transfer
+          Use Nexus UI to complete the Finternet-compliant USDC ↔ USDT transfer
         </p>
       </div>
 
@@ -792,10 +841,6 @@ export default function PaymentIntentDemo() {
                 <p className="text-sm text-muted-foreground mb-4 text-balance">
                   Bridge tokens across different chains using Nexus
                 </p>
-                <p className="text-xs text-blue-600 mb-3">
-                  Receiver: {receiverAddr.slice(0, 8)}...
-                  {receiverAddr.slice(-6)}
-                </p>
                 <BridgeButton>
                   {({ onClick, isLoading }) => (
                     <Button
@@ -867,6 +912,34 @@ export default function PaymentIntentDemo() {
     </div>
   )
 
+  // Wallet Connection Popup
+  const renderWalletConnectionPopup = () => (
+    <Dialog open={showWalletPopup} onOpenChange={setShowWalletPopup}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-center">Connect Your Wallet</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground mb-4">
+              Connect your wallet to set the sender address for the transfer
+            </p>
+            <WalletConnection />
+          </div>
+          <div className="text-center">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowWalletPopup(false)}
+              className="w-full"
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       {/* Step Indicator */}
@@ -905,7 +978,7 @@ export default function PaymentIntentDemo() {
             >
               2
             </div>
-            <span className="ml-2 font-medium">Validate Rules</span>
+            <span className="ml-2 font-medium">Validate Finternet Rules</span>
           </div>
 
           <div
@@ -932,6 +1005,9 @@ export default function PaymentIntentDemo() {
       {currentStep === 'setup' && renderSetupStep()}
       {currentStep === 'validation' && renderValidationStep()}
       {currentStep === 'transfer' && renderTransferStep()}
+      
+      {/* Wallet Connection Popup */}
+      {renderWalletConnectionPopup()}
     </div>
   )
 }

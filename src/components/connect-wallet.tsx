@@ -1,28 +1,15 @@
+import { useState } from 'react'
 import {
   usePrivy,
   useWallets,
-  type ConnectedWallet,
 } from '@privy-io/react-auth'
 import { Button } from '@/components/ui/button'
-import { useNexus } from '@avail-project/nexus/ui'
-import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 
 export default function WalletConnection() {
   const { connectWallet, login, authenticated } = usePrivy()
   const { wallets } = useWallets()
-  const { setProvider, provider } = useNexus()
   const [isConnecting, setIsConnecting] = useState(false)
-
-  const setupProvider = async (wallet: ConnectedWallet) => {
-    try {
-      const ethProvider = await wallet.getEthereumProvider()
-      console.log('get provider', ethProvider)
-      setProvider(ethProvider)
-    } catch (error) {
-      console.error('Failed to setup provider:', error)
-    }
-  }
 
   const connectExternalWallet = async () => {
     try {
@@ -39,31 +26,27 @@ export default function WalletConnection() {
     }
   }
 
-  const connectedWallet = wallets[0]
-
-  useEffect(() => {
-    if (connectedWallet && !provider) {
-      setupProvider(connectedWallet)
-    }
-  }, [connectedWallet, provider])
+  // Note: We're not automatically setting up the provider here
+  // to avoid showing Avail branding during wallet connection.
+  // The provider will be set up when actually needed for transfers.
 
   return (
     <div
       className={cn(
         'max-w-md mx-auto p-4',
-        authenticated && wallets?.length > 0 && 'invisible',
+        authenticated && wallets.length > 0 && 'invisible',
       )}
     >
       <div className="text-center">
         <Button
           onClick={connectExternalWallet}
-          disabled={isConnecting || (authenticated && wallets?.length > 0)}
+          disabled={isConnecting || (authenticated && wallets.length > 0)}
           size="lg"
           className="min-w-[200px]"
         >
           {isConnecting
             ? 'Connecting...'
-            : authenticated && wallets?.length > 0
+            : authenticated && wallets.length > 0
               ? 'Connected'
               : 'Connect Wallet & Login'}
         </Button>

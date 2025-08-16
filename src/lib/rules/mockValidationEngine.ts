@@ -1,10 +1,95 @@
 import type { Decision, Party } from '../../types/demo';
 
+// Type definitions
+type KycLevel = 'Full' | 'Basic' | 'None';
+type RiskScore = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+type ComplianceTier = 'TIER_1' | 'TIER_2' | 'TIER_3' | 'TIER_4' | 'BLOCKED';
+
+// Type for wallet info with optional fields
+interface WalletInfo {
+  kycLevel: KycLevel;
+  isSanctioned: boolean;
+  riskScore: RiskScore;
+  country: string;
+  lastVerified: string | null;
+  verificationSource: string | null;
+  complianceTier: ComplianceTier;
+  kycReason?: string;
+  sanctionsReason?: string;
+  specialNotes?: string;
+}
+
+// Business rules configuration type
+interface BusinessRules {
+  kycRequirements: {
+    minLevel: KycLevel;
+    allowedLevels: Array<KycLevel>;
+    description: string;
+  };
+  sanctionsPolicy: {
+    allowed: boolean;
+    description: string;
+  };
+  geographicRestrictions: {
+    blockedCountries: Array<string>;
+    description: string;
+  };
+  riskThresholds: {
+    maxRiskScore: RiskScore;
+    description: string;
+  };
+  amountLimits: {
+    tier1Max: number;
+    tier2Max: number;
+    tier3Max: number;
+    blockedMax: number;
+  };
+}
+
+// Validation result types
+interface ValidationResult {
+  allowed: boolean;
+  reason?: string;
+}
+
+interface ComplianceMetadata {
+  rulesVersion: string;
+  rulesApplied: Array<string>;
+  processingTime: number;
+  validationId: string;
+  senderKycStatus: 'PASSED' | 'FAILED';
+  receiverKycStatus: 'PASSED' | 'FAILED' | 'UNKNOWN';
+  senderSanctionsStatus: 'CLEAR' | 'FLAGGED';
+  receiverSanctionsStatus: 'CLEAR' | 'FLAGGED' | 'UNKNOWN';
+  senderGeographicStatus: 'ALLOWED' | 'BLOCKED';
+  receiverGeographicStatus: 'ALLOWED' | 'BLOCKED' | 'UNKNOWN';
+  senderRiskStatus: 'ACCEPTABLE' | 'EXCEEDED';
+  receiverRiskStatus: 'ACCEPTABLE' | 'EXCEEDED' | 'UNKNOWN';
+  senderDetails: {
+    wallet: string;
+    kycLevel: KycLevel;
+    isSanctioned: boolean;
+    complianceTier: ComplianceTier;
+    lastVerified: string;
+    verificationSource: string;
+    note: string;
+  };
+  receiverDetails: {
+    country: string;
+    riskScore: RiskScore;
+    complianceTier: ComplianceTier;
+    lastVerified: string | null;
+    verificationSource: string | null;
+  } | null;
+  overallRiskScore: RiskScore;
+  complianceStatus: 'COMPLIANT' | 'NON_COMPLIANT';
+}
+
 // Mock wallet database with predefined compliance statuses
-const MOCK_WALLET_DATABASE = {
+const MOCK_WALLET_DATABASE: Record<string, WalletInfo> = {
   // Compliant wallets - Full KYC, no sanctions
   '0x1234567890123456789012345678901234567890': {
-    kycLevel: 'Full' as const,
+    kycLevel: 'Full',
     isSanctioned: false,
     riskScore: 'LOW',
     country: 'US',
@@ -13,7 +98,7 @@ const MOCK_WALLET_DATABASE = {
     complianceTier: 'TIER_1'
   },
   '0x2345678901234567890123456789012345678901': {
-    kycLevel: 'Full' as const,
+    kycLevel: 'Full',
     isSanctioned: false,
     riskScore: 'LOW',
     country: 'CA',
@@ -22,7 +107,7 @@ const MOCK_WALLET_DATABASE = {
     complianceTier: 'TIER_1'
   },
   '0x3456789012345678901234567890123456789012': {
-    kycLevel: 'Full' as const,
+    kycLevel: 'Full',
     isSanctioned: false,
     riskScore: 'MEDIUM',
     country: 'UK',
@@ -33,7 +118,7 @@ const MOCK_WALLET_DATABASE = {
   
   // Non-compliant wallets - Various issues
   '0x4567890123456789012345678901234567890123': {
-    kycLevel: 'Basic' as const,
+    kycLevel: 'Basic',
     isSanctioned: false,
     riskScore: 'HIGH',
     country: 'BR',
@@ -43,7 +128,7 @@ const MOCK_WALLET_DATABASE = {
     kycReason: 'Incomplete documentation'
   },
   '0x5678901234567890123456789012345678901234': {
-    kycLevel: 'None' as const,
+    kycLevel: 'None',
     isSanctioned: false,
     riskScore: 'HIGH',
     country: 'IN',
@@ -53,7 +138,7 @@ const MOCK_WALLET_DATABASE = {
     kycReason: 'No KYC verification attempted'
   },
   '0x6789012345678901234567890123456789012345': {
-    kycLevel: 'Full' as const,
+    kycLevel: 'Full',
     isSanctioned: true,
     riskScore: 'CRITICAL',
     country: 'RU',
@@ -63,7 +148,7 @@ const MOCK_WALLET_DATABASE = {
     sanctionsReason: 'OFAC Specially Designated Nationals List'
   },
   '0x7890123456789012345678901234567890123456': {
-    kycLevel: 'Full' as const,
+    kycLevel: 'Full',
     isSanctioned: true,
     riskScore: 'CRITICAL',
     country: 'IR',
@@ -75,7 +160,7 @@ const MOCK_WALLET_DATABASE = {
   
   // Edge cases
   '0x8901234567890123456789012345678901234567': {
-    kycLevel: 'Basic' as const,
+    kycLevel: 'Basic',
     isSanctioned: true,
     riskScore: 'CRITICAL',
     country: 'NG',
@@ -86,7 +171,7 @@ const MOCK_WALLET_DATABASE = {
     sanctionsReason: 'Local regulatory restrictions'
   },
   '0x9012345678901234567890123456789012345678': {
-    kycLevel: 'Full' as const,
+    kycLevel: 'Full',
     isSanctioned: false,
     riskScore: 'MEDIUM',
     country: 'SG',
@@ -95,13 +180,10 @@ const MOCK_WALLET_DATABASE = {
     complianceTier: 'TIER_2',
     specialNotes: 'Enhanced due diligence required'
   }
-} as const;
-
-// Type for wallet info with optional fields
-type WalletInfo = typeof MOCK_WALLET_DATABASE[keyof typeof MOCK_WALLET_DATABASE];
+};
 
 // Mock business rules configuration
-const BUSINESS_RULES = {
+const BUSINESS_RULES: BusinessRules = {
   kycRequirements: {
     minLevel: 'Full',
     allowedLevels: ['Full'],
@@ -128,13 +210,13 @@ const BUSINESS_RULES = {
 };
 
 // Helper function to get wallet info
-function getWalletInfo(walletAddress: string) {
+function getWalletInfo(walletAddress: string): WalletInfo | null {
   const normalizedAddress = walletAddress.toLowerCase();
-  return MOCK_WALLET_DATABASE[normalizedAddress as keyof typeof MOCK_WALLET_DATABASE] || null;
+  return MOCK_WALLET_DATABASE[normalizedAddress] ?? null;
 }
 
 // Helper function to check geographic restrictions
-function checkGeographicRestrictions(country: string): { allowed: boolean; reason?: string } {
+function checkGeographicRestrictions(country: string): ValidationResult {
   if (BUSINESS_RULES.geographicRestrictions.blockedCountries.includes(country)) {
     return {
       allowed: false,
@@ -145,8 +227,8 @@ function checkGeographicRestrictions(country: string): { allowed: boolean; reaso
 }
 
 // Helper function to check risk score
-function checkRiskScore(riskScore: string): { allowed: boolean; reason?: string } {
-  const riskOrder = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+function checkRiskScore(riskScore: RiskScore): ValidationResult {
+  const riskOrder: Array<RiskScore> = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
   const maxAllowedIndex = riskOrder.indexOf(BUSINESS_RULES.riskThresholds.maxRiskScore);
   const currentIndex = riskOrder.indexOf(riskScore);
   
@@ -164,66 +246,82 @@ export async function evaluatePreTx(sender: Party, receiver: Party): Promise<Dec
   // Simulate API processing delay
   await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 400));
   
-  const senderInfo = getWalletInfo(sender.wallet);
   const receiverInfo = getWalletInfo(receiver.wallet);
   
   const reasons: Array<string> = [];
-  const metadata: Record<string, any> = {
+  const metadata: ComplianceMetadata = {
     rulesVersion: '1.0.0',
     rulesApplied: [],
     processingTime: Date.now(),
-    validationId: `mock-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    validationId: `mock-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    senderKycStatus: 'PASSED',
+    receiverKycStatus: 'UNKNOWN',
+    senderSanctionsStatus: 'CLEAR',
+    receiverSanctionsStatus: 'UNKNOWN',
+    senderGeographicStatus: 'ALLOWED',
+    receiverGeographicStatus: 'UNKNOWN',
+    senderRiskStatus: 'ACCEPTABLE',
+    receiverRiskStatus: 'UNKNOWN',
+    senderDetails: {
+      wallet: sender.wallet,
+      kycLevel: sender.kycLevel,
+      isSanctioned: sender.isSanctioned,
+      complianceTier: 'TIER_1',
+      lastVerified: new Date().toISOString(),
+      verificationSource: 'Wallet Connection',
+      note: 'Connected wallet - treated as compliant'
+    },
+    receiverDetails: null,
+    overallRiskScore: 'LOW',
+    complianceStatus: 'COMPLIANT'
   };
   
   // Rule 1: KYC Level Enforcement
   metadata.rulesApplied.push('KYC Level Enforcement');
   
-  // Sender is always treated as compliant (connected wallet assumption)
+  // Sender validation (connected wallet assumption)
   if (sender.kycLevel !== 'Full' || sender.isSanctioned) {
     reasons.push('Sender wallet compliance check failed.');
     metadata.senderKycStatus = 'FAILED';
-  } else {
-    metadata.senderKycStatus = 'PASSED';
+    metadata.senderSanctionsStatus = sender.isSanctioned ? 'FLAGGED' : 'CLEAR';
   }
   
-  // Receiver validation from database
-  if (!receiverInfo || receiverInfo.kycLevel !== BUSINESS_RULES.kycRequirements.minLevel) {
-    const reason = receiverInfo 
-      ? `Receiver KYC level (${receiverInfo.kycLevel}) below required (${BUSINESS_RULES.kycRequirements.minLevel})`
-      : 'Receiver wallet not found in compliance database';
-    reasons.push(reason);
+  // Receiver validation
+  if (receiverInfo === null) {
+    reasons.push('Receiver wallet not found in compliance database');
     metadata.receiverKycStatus = 'FAILED';
   } else {
-    metadata.receiverKycStatus = 'PASSED';
-  }
-  
-  // Rule 2: Sanctions Screening
-  metadata.rulesApplied.push('Sanctions & PEP Screen');
-  
-  // Sender sanctions (always clear for connected wallet)
-  if (sender.isSanctioned) {
-    reasons.push('Sender is sanctioned: Connected wallet flagged');
-    metadata.senderSanctionsStatus = 'FLAGGED';
-  } else {
-    metadata.senderSanctionsStatus = 'CLEAR';
-  }
-  
-  // Receiver sanctions from database
-  if (receiverInfo?.isSanctioned) {
-    reasons.push(`Receiver is sanctioned: ${receiverInfo.sanctionsReason || 'Unknown reason'}`);
-    metadata.receiverSanctionsStatus = 'FLAGGED';
-  } else {
-    metadata.receiverSanctionsStatus = 'CLEAR';
-  }
-  
-  // Rule 3: Geographic Restrictions
-  metadata.rulesApplied.push('Geographic Restrictions');
-  
-  // Sender geographic (always allowed for connected wallet)
-  metadata.senderGeographicStatus = 'ALLOWED';
-  
-  // Receiver geographic from database
-  if (receiverInfo) {
+    // Set receiver details
+    metadata.receiverDetails = {
+      country: receiverInfo.country,
+      riskScore: receiverInfo.riskScore,
+      complianceTier: receiverInfo.complianceTier,
+      lastVerified: receiverInfo.lastVerified,
+      verificationSource: receiverInfo.verificationSource
+    };
+
+    // KYC Level Check
+    if (receiverInfo.kycLevel !== BUSINESS_RULES.kycRequirements.minLevel) {
+      const reason = `Receiver KYC level (${receiverInfo.kycLevel}) below required (${BUSINESS_RULES.kycRequirements.minLevel})`;
+      reasons.push(reason);
+      metadata.receiverKycStatus = 'FAILED';
+    } else {
+      metadata.receiverKycStatus = 'PASSED';
+    }
+
+    // Rule 2: Sanctions Screening
+    metadata.rulesApplied.push('Sanctions & PEP Screen');
+    
+    if (receiverInfo.isSanctioned) {
+      reasons.push(`Receiver is sanctioned: ${receiverInfo.sanctionsReason || 'Unknown reason'}`);
+      metadata.receiverSanctionsStatus = 'FLAGGED';
+    } else {
+      metadata.receiverSanctionsStatus = 'CLEAR';
+    }
+
+    // Rule 3: Geographic Restrictions
+    metadata.rulesApplied.push('Geographic Restrictions');
+    
     const geoCheck = checkGeographicRestrictions(receiverInfo.country);
     if (!geoCheck.allowed) {
       reasons.push(`Receiver ${geoCheck.reason}`);
@@ -231,16 +329,10 @@ export async function evaluatePreTx(sender: Party, receiver: Party): Promise<Dec
     } else {
       metadata.receiverGeographicStatus = 'ALLOWED';
     }
-  }
-  
-  // Rule 4: Risk Score Assessment
-  metadata.rulesApplied.push('Risk Score Assessment');
-  
-  // Sender risk (always low for connected wallet)
-  metadata.senderRiskStatus = 'ACCEPTABLE';
-  
-  // Receiver risk from database
-  if (receiverInfo) {
+
+    // Rule 4: Risk Score Assessment
+    metadata.rulesApplied.push('Risk Score Assessment');
+    
     const riskCheck = checkRiskScore(receiverInfo.riskScore);
     if (!riskCheck.allowed) {
       reasons.push(`Receiver ${riskCheck.reason}`);
@@ -248,39 +340,14 @@ export async function evaluatePreTx(sender: Party, receiver: Party): Promise<Dec
     } else {
       metadata.receiverRiskStatus = 'ACCEPTABLE';
     }
+
+    // Calculate overall risk score
+    metadata.overallRiskScore = receiverInfo.riskScore;
   }
-  
-  // Additional metadata
-  metadata.senderDetails = {
-    wallet: sender.wallet,
-    kycLevel: sender.kycLevel,
-    isSanctioned: sender.isSanctioned,
-    complianceTier: 'TIER_1', // Connected wallet assumption
-    lastVerified: new Date().toISOString(),
-    verificationSource: 'Wallet Connection',
-    note: 'Connected wallet - treated as compliant'
-  };
-  
-  metadata.receiverDetails = receiverInfo ? {
-    country: receiverInfo.country,
-    riskScore: receiverInfo.riskScore,
-    complianceTier: receiverInfo.complianceTier,
-    lastVerified: receiverInfo.lastVerified,
-    verificationSource: receiverInfo.verificationSource
-  } : null;
-  
-  // Calculate overall risk score
-  const riskScores = [receiverInfo?.riskScore].filter(Boolean);
-  if (riskScores.length > 0) {
-    const riskOrder = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
-    const maxRiskIndex = Math.max(...riskScores.map(score => riskOrder.indexOf(score)));
-    metadata.overallRiskScore = riskOrder[maxRiskIndex];
-  } else {
-    metadata.overallRiskScore = 'LOW'; // Default to low if no receiver risk data
-  }
-  
+
+  // Set final compliance status
   metadata.complianceStatus = reasons.length === 0 ? 'COMPLIANT' : 'NON_COMPLIANT';
-  
+
   return {
     outcome: reasons.length === 0 ? 'ALLOW' : 'REJECT',
     reasons,
@@ -304,17 +371,15 @@ export function getAvailableTestWallets() {
 // Helper function to generate wallet descriptions
 function getWalletDescription(info: WalletInfo): string {
   if (info.isSanctioned) {
-    const sanctionsReason = 'sanctionsReason' in info ? info.sanctionsReason : 'Unknown reason';
+    const sanctionsReason = info.sanctionsReason || 'Unknown reason';
     return `🚫 SANCTIONED - ${info.country} (${sanctionsReason})`;
   }
   
   if (info.kycLevel === 'None') {
-    const kycReason = 'kycReason' in info ? info.kycReason : 'No verification';
-    return `❌ NO KYC - ${info.country} (${kycReason})`;
+    return `❌ NO KYC - ${info.country} (No verification)`;
   }
   
   if (info.kycLevel === 'Basic') {
-    const kycReason = 'kycReason' in info ? info.kycReason : 'Basic verification';
     return `⚠️ BASIC KYC - ${info.country} (${info.riskScore})`;
   }
   

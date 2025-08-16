@@ -12,7 +12,7 @@ import type { IntentSide, Party } from '../types/demo'
 import WalletConnection from '@/components/connect-wallet'
 
 export default function PaymentIntentDemo() {
-  const { connectWallet, login, authenticated } = usePrivy()
+  const { authenticated } = usePrivy()
   const { wallets } = useWallets()
   const { setProvider, provider, sdk } = useNexus()
   const { isPreparing, openTransfer, openBridge } = useNexusTransfer()
@@ -99,42 +99,7 @@ export default function PaymentIntentDemo() {
       setReceiver(updatedReceiver)
       setReceiverAddr(walletAddress)
     }
-  }
-
-  const onValidate = async () => {
-    setIsValidating(true)
-    try {
-      // Evaluate rules using mock validation engine
-      const decision = await evaluatePreTx(sender, receiver)
-
-      setValidation({
-        ok: decision.outcome === 'ALLOW',
-        reasons: decision.reasons,
-        metadata: decision.metadata,
-      })
-
-      if (decision.outcome === 'ALLOW') {
-        setCurrentStep('transfer')
-      }
-    } catch (error) {
-      console.error('Validation error:', error)
-      setValidation({
-        ok: false,
-        reasons: ['Validation failed - please try again'],
-        metadata: { error: true },
-      })
-    } finally {
-      setIsValidating(false)
-    }
-  }
-
-  const handleConnectWallet = async () => {
-    if (!authenticated) {
-      await login()
-    } else {
-      await connectWallet()
-    }
-  }
+  } 
 
   const openWalletConnectionPopup = () => {
     setShowWalletPopup(true)

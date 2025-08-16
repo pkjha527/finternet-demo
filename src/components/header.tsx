@@ -23,7 +23,12 @@ export default function Header() {
   return (
     <header className="px-4 py-2 flex gap-x-4 text-black justify-between items-center border-b border-gray-300">
       <nav className="flex flex-row">
-        <img src="/avail-logo.svg" alt="Avail Logo" />
+        <img
+          src="https://finternetlab.io/images/headers/finternet_logo_for_website-transformed1.png"
+          alt="Finternet Logo"
+          width={160}
+          height={120}
+        />
       </nav>
 
       <div className="flex items-center gap-x-4">

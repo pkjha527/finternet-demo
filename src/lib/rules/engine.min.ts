@@ -2,10 +2,10 @@ import { evaluatePreTx as mockEvaluatePreTx } from './mockValidationEngine';
 import type { Decision, Party } from '../../types/demo';
 
 // Use mock validation engine for demo purposes
-export async function evaluatePreTx(sender: Party, receiver: Party): Promise<Decision> {
+export async function evaluatePreTx(sender: Party, receiver: Party, amount?: number, tokenType?: string): Promise<Decision> {
   try {
     // Use mock validation engine instead of backend API
-    return await mockEvaluatePreTx(sender, receiver);
+    return await mockEvaluatePreTx(sender, receiver, amount, tokenType);
   } catch (error) {
     console.error('Mock validation failed:', error);
     // Fallback to basic validation if mock engine fails

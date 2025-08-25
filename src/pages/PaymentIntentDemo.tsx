@@ -480,6 +480,25 @@ export default function PaymentIntentDemo() {
             <p className="text-sm text-muted-foreground mt-1">
               Maximum: $25 (demo limit)
             </p>
+            {currentCorridor && corridorInfo && (
+              <div className="mt-2 p-2 bg-gray-50 rounded-lg border">
+                <div className="text-sm">
+                  <span className="text-gray-600">Corridor Limit: </span>
+                  <span className={`font-medium ${
+                    amount <= (corridorInfo.rules[0]?.amountLimit || 0) 
+                      ? 'text-green-600' 
+                      : 'text-red-600'
+                  }`}>
+                    ${(corridorInfo.rules[0]?.amountLimit || 0).toLocaleString()}
+                  </span>
+                  {amount > (corridorInfo.rules[0]?.amountLimit || 0) && (
+                    <span className="text-red-600 text-xs block mt-1">
+                      ⚠️ Amount exceeds corridor limit
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -607,7 +626,7 @@ export default function PaymentIntentDemo() {
             // Validate compliance before proceeding
             setIsValidating(true)
             try {
-              const decision = await evaluatePreTx(sender, receiver)
+              const decision = await evaluatePreTx(sender, receiver, amount, side === 'USDC_TO_USDT' ? 'USDC' : 'USDT')
               if (decision.outcome === 'ALLOW') {
                 setCurrentStep('validation')
               } else {

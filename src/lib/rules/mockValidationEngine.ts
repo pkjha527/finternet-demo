@@ -1,5 +1,5 @@
 import { determineCorridor, getCorridorInfo, validateCorridorRules } from './corridorRules';
-import type { Decision, Party } from '../../types/demo';
+import type { Decision, Party, TokenType } from '../../types/demo';
 
 // Type definitions
 type KycLevel = 'Full' | 'Basic' | 'None';
@@ -267,7 +267,7 @@ function checkRiskScore(riskScore: RiskScore): ValidationResult {
 }
 
 // Main validation function
-export async function evaluatePreTx(sender: Party, receiver: Party): Promise<Decision> {
+export async function evaluatePreTx(sender: Party, receiver: Party, amount?: number, tokenType?: string): Promise<Decision> {
   // Simulate API processing delay
   await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 400));
   
@@ -316,12 +316,13 @@ export async function evaluatePreTx(sender: Party, receiver: Party): Promise<Dec
     // Apply corridor-specific rules
     // For USDC_TO_USDT: Sender sends USDC, Receiver gets USDC (then converts to USDT)
     // For USDT_TO_USDC: Sender sends USDT, Receiver gets USDT (then converts to USDC)
-    const transactionToken = 'USDC'; // This should come from the actual transaction
+    const transactionToken = tokenType as TokenType || 'USDC'; // Use provided token or default to USDC
+    const transactionAmount = amount || 25; // Use provided amount or default to demo amount
     const corridorValidation = validateCorridorRules(
       corridorId,
       sender,
       receiver,
-      25, // Demo amount - in real scenario this would come from the transaction
+      transactionAmount,
       transactionToken
     );
     

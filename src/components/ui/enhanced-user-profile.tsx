@@ -1,3 +1,4 @@
+import React from 'react';
 import { cn } from '../../lib/utils';
 import { ComplianceStatus } from './compliance-status';
 import type { FinternetUser } from '../../types/demo';

@@ -8,8 +8,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/
 import { evaluatePreTx } from '../lib/rules/engine.min'
 import { getAvailableTestWallets } from '../lib/rules/mockValidationEngine'
 import { useNexusTransfer } from '../hooks/useNexusTransfer'
-import type { IntentSide, Party } from '../types/demo'
+import { determineCorridor, getActiveCorridors, getCorridorInfo } from '../lib/rules/corridorRules'
+import type { FinternetUser, IntentSide, Party } from '../types/demo'
+import FinternetIdInput from '../components/ui/finternet-id-input'
+import EnhancedUserProfile from '../components/ui/enhanced-user-profile'
+import EnhancedCard from '../components/ui/enhanced-card'
+import ComplianceStatus from '../components/ui/compliance-status'
+import ProgressFlow from '../components/ui/progress-flow'
 import WalletConnection from '@/components/connect-wallet'
+import { findUserByWalletAddress, getAllFinternetUsers, resolveFinternetId } from '../lib/constants/finternetUsers'
 
 export default function PaymentIntentDemo() {
   const { authenticated } = usePrivy()
@@ -19,19 +26,50 @@ export default function PaymentIntentDemo() {
 
   // Get available test wallets
   const availableWallets = getAvailableTestWallets()
+  const activeCorridors = getActiveCorridors()
 
-  const [sender, setSender] = useState<Party>({
+  const [receiverFinternetId, setReceiverFinternetId] = useState<string>('maria@finternet.sg')
+  
+  // Automatically detect sender from connected wallet
+  const connectedWalletAddress = wallets.length > 0 ? wallets[0]?.address : null
+  const senderUser = connectedWalletAddress ? findUserByWalletAddress(connectedWalletAddress) : null
+  const senderFinternetId = senderUser?.finternetId ?? ''
+  
+  // Resolve receiver Finternet ID to user object
+  const receiverUser = resolveFinternetId(receiverFinternetId)
+  
+  // Convert to Party objects for corridor validation
+  const sender: Party = senderUser ? {
     label: 'Sender',
-    wallet: '', // Will be set when wallet connects
+    wallet: senderUser.walletAddress,
+    kycLevel: senderUser.kycLevel,
+    isSanctioned: senderUser.isSanctioned,
+    country: senderUser.countryCode,
+    jurisdiction: senderUser.jurisdiction
+  } : {
+    label: 'Sender',
+    wallet: '',
     kycLevel: 'None',
-    isSanctioned: true, // true indicates "pending verification"
-  })
-  const [receiver, setReceiver] = useState<Party>({
+    isSanctioned: true,
+    country: 'US',
+    jurisdiction: 'USA'
+  }
+  
+  const receiver: Party = receiverUser ? {
     label: 'Receiver',
-    wallet: '0x2345678901234567890123456789012345678901',
-    kycLevel: 'Full',
-    isSanctioned: false,
-  })
+    wallet: receiverUser.walletAddress,
+    kycLevel: receiverUser.kycLevel,
+    isSanctioned: receiverUser.isSanctioned,
+    country: receiverUser.countryCode,
+    jurisdiction: receiverUser.jurisdiction
+  } : {
+    label: 'Receiver',
+    wallet: '',
+    kycLevel: 'None',
+    isSanctioned: true,
+    country: 'SG',
+    jurisdiction: 'Singapore'
+  }
   const [side, setSide] = useState<IntentSide>('USDC_TO_USDT')
   const [amount, setAmount] = useState<number>(5)
   const [receiverAddr, setReceiverAddr] = useState<string>(
@@ -48,18 +86,17 @@ export default function PaymentIntentDemo() {
   >('setup')
   const [showWalletPopup, setShowWalletPopup] = useState(false)
 
+  // Determine current corridor
+  const currentCorridor = determineCorridor(sender, receiver)
+  const corridorInfo = currentCorridor ? getCorridorInfo(currentCorridor) : null
+
   // Effect to handle wallet connection and update sender state
   useEffect(() => {
     if (wallets.length > 0 && wallets[0]?.address) {
-      // Update sender with connected wallet address and set as compliant
-      const newSenderState = {
-        label: 'Sender' as const,
-        wallet: wallets[0].address,
-        kycLevel: 'Full' as const, // Connected wallet is treated as compliant
-        isSanctioned: false, // Connected wallet is treated as clear
-      }
-      setSender(newSenderState)
-
+      // For demo purposes, we'll keep using Finternet IDs
+      // The connected wallet will be used for actual transactions
+      // but the sender/receiver will still be Finternet users for compliance
+      
       // Setup provider if not already set (only when wallet is actually connected)
       if (!provider) {
         setupProvider()
@@ -69,20 +106,10 @@ export default function PaymentIntentDemo() {
       setShowWalletPopup(false)
     } else if (wallets.length > 0 && !wallets[0]?.address) {
       // Wallet object exists but no address - treat as not connected
-      setSender({
-        label: 'Sender',
-        wallet: '',
-        kycLevel: 'None',
-        isSanctioned: true, // true indicates "pending verification"
-      })
+      // No need to update sender state - we're using Finternet IDs
     } else {
       // Reset entire sender state when no wallet is connected
-      setSender({
-        label: 'Sender',
-        wallet: '',
-        kycLevel: 'None',
-        isSanctioned: true, // true indicates "pending verification"
-      })
+      // No need to update sender state - we're using Finternet IDs
     }
   }, [wallets, provider])
 
@@ -90,13 +117,7 @@ export default function PaymentIntentDemo() {
   const updateReceiverFromWallet = (walletAddress: string) => {
     const walletInfo = availableWallets.find((w) => w.address === walletAddress)
     if (walletInfo) {
-      const updatedReceiver: Party = {
-        label: 'Receiver',
-        wallet: walletAddress,
-        kycLevel: walletInfo.kycLevel,
-        isSanctioned: walletInfo.isSanctioned,
-      }
-      setReceiver(updatedReceiver)
+      // Update receiver address for transactions
       setReceiverAddr(walletAddress)
     }
   } 
@@ -125,151 +146,312 @@ export default function PaymentIntentDemo() {
         </p>
       </div>
 
+      {/* Progress Flow Indicator */}
+      <EnhancedCard variant="compliance" elevated>
+        <ProgressFlow
+          steps={[
+            { id: 'setup', label: 'Setup', description: 'Configure users', status: 'active' },
+            { id: 'validation', label: 'Validation', description: 'Check compliance', status: 'pending' },
+            { id: 'transfer', label: 'Transfer', description: 'Execute transaction', status: 'pending' }
+          ]}
+          currentStep="setup"
+        />
+      </EnhancedCard>
+
       {/* Wallet Connection Status */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Wallet Connection</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {!authenticated || wallets.length === 0 ? (
-            <WalletConnection />
-          ) : (
-            <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg font-serif">
-              <span className="font-medium">✅ Wallet Connected</span>
-              <span className="text-sm text-green-600">
-                {wallets[0]?.address?.slice(0, 8) + '...'}
-              </span>
+      <EnhancedCard 
+        variant={authenticated && wallets.length > 0 ? 'success' : 'warning'}
+        elevated
+        icon={authenticated && wallets.length > 0 ? '🔗' : '🔌'}
+        title="Wallet Connection"
+        subtitle={authenticated && wallets.length > 0 ? 'Connected and ready for transactions' : 'Connect your wallet to continue'}
+      >
+        {!authenticated || wallets.length === 0 ? (
+          <WalletConnection />
+        ) : (
+          <div className="space-y-4">
+            <ComplianceStatus
+              status="compliant"
+              label="Wallet Connected"
+              description="Ready for Finternet compliance checks"
+              size="lg"
+            />
+            <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+              <div className="text-sm text-green-700">
+                <strong>Connected Address:</strong> {wallets[0]?.address?.slice(0, 8)}...{wallets[0]?.address?.slice(-6)}
+              </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        )}
+      </EnhancedCard>
 
       {/* Sender Configuration */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Sender Configuration (Connected Wallet)</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label htmlFor="sender-wallet">Sender Wallet</Label>
-            {sender.wallet ? (
-              <div className="p-2 bg-green-50 border border-green-200 rounded-md">
-                <span className="font-medium text-green-700">
-                  {sender.wallet.slice(0, 8)}...{sender.wallet.slice(-6)} - 🟢
-                  COMPLIANT
-                </span>
+      <EnhancedCard 
+        variant="compliance"
+        elevated
+        icon="👤"
+        title="Sender Configuration"
+        subtitle="Automatically detected from connected wallet"
+      >
+        <div className="space-y-4">
+          <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <div className="text-sm text-gray-600 mb-2">Sender (Auto-detected from connected wallet)</div>
+            {connectedWalletAddress ? (
+              <div className="space-y-2">
+                <div className="text-xs text-gray-500 font-mono">
+                  Wallet: {connectedWalletAddress.slice(0, 8)}...{connectedWalletAddress.slice(-6)}
+                </div>
+                {senderUser ? (
+                  <div className="text-lg font-medium text-gray-900">{senderFinternetId}</div>
+                ) : (
+                  <div className="text-sm text-yellow-600">
+                    ⚠️ Wallet not found in Finternet registry. Please ensure you're using a registered wallet.
+                  </div>
+                )}
               </div>
             ) : (
-              <div 
-                className="p-2 bg-gray-50 border border-gray-200 rounded-md cursor-pointer hover:bg-gray-100 transition-colors"
-                onClick={openWalletConnectionPopup}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-500 hover:text-gray-700">
-                    Connect wallet to set sender address
-                  </span>
-                  <span className="text-blue-500 text-sm">Click to connect →</span>
-                </div>
-              </div>
+              <div className="text-sm text-gray-500">No wallet connected</div>
             )}
-            <p className="text-sm text-muted-foreground mt-1">
-              {sender.wallet 
-                ? 'Your connected wallet - automatically treated as compliant (Full KYC, no sanctions)'
-                : 'Connect your wallet to verify KYC level and sanctions status'
-              }
-            </p>
-
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>KYC Level</Label>
-              <div className={`p-2 rounded border ${
-                sender.wallet 
-                  ? 'bg-green-50 border-green-200' 
-                  : 'bg-yellow-50 border-yellow-200'
-              }`}>
-                <span className={`font-medium ${
-                  sender.wallet 
-                    ? 'text-green-600' 
-                    : 'text-yellow-600'
-                }`}>
-                  {sender.wallet ? 'Full' : 'None'}
-                </span>
-              </div>
-            </div>
-            <div>
-              <Label>Sanctions Status</Label>
-              <div className={`p-2 rounded border ${
-                sender.wallet 
-                  ? 'bg-green-50 border-green-200' 
-                  : 'bg-yellow-50 border-yellow-200'
-              }`}>
-                <span className={`font-medium ${
-                  sender.wallet 
-                    ? 'text-green-600' 
-                    : 'text-yellow-600'
-                }`}>
-                  {sender.wallet ? 'Clear' : 'Pending Verification'}
-                </span>
-              </div>
+          
+          {senderUser && (
+            <EnhancedUserProfile
+              user={senderUser}
+              label="Sender"
+              showWallet={false}
+              variant="elevated"
+            />
+          )}
+          
+          <div className="p-3 bg-blue-50 rounded-lg">
+            <div className="text-sm text-blue-700">
+              <strong>Note:</strong> The connected wallet will be used for actual transactions, 
+              but compliance rules are based on the selected Finternet user's profile.
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </EnhancedCard>
 
       {/* Receiver Configuration */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Receiver Configuration</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label htmlFor="receiver-wallet">Receiver Wallet</Label>
-            <select
-              id="receiver-wallet"
-              value={receiver.wallet}
-              onChange={(e) => updateReceiverFromWallet(e.target.value)}
-              className="w-full p-2 border rounded-md"
-            >
-              {availableWallets.map((wallet) => (
-                <option key={wallet.address} value={wallet.address}>
-                  {wallet.address.slice(0, 8)}...{wallet.address.slice(-6)} -{' '}
-                  {wallet.description}
-                </option>
-              ))}
-            </select>
-            <p className="text-sm text-muted-foreground mt-1">
-              Select a receiver wallet to test different compliance scenarios
-            </p>
+      <EnhancedCard 
+        variant="compliance"
+        elevated
+        icon="👥"
+        title="Receiver Configuration"
+        subtitle="Select the recipient Finternet user"
+      >
+        <div className="space-y-4">
+          <FinternetIdInput
+            value={receiverFinternetId}
+            onChange={setReceiverFinternetId}
+            label="Receiver Finternet ID"
+            placeholder="Enter receiver Finternet ID (e.g., maria@finternet.sg)"
+          />
+          
+          {receiverUser && (
+            <EnhancedUserProfile
+              user={receiverUser}
+              label="Receiver"
+              showWallet={false}
+              variant="elevated"
+            />
+          )}
+          
+          <div className="p-3 bg-blue-50 rounded-lg">
+            <div className="text-sm text-blue-700">
+              <strong>Note:</strong> The receiver's wallet address will be used for actual transactions, 
+              but compliance rules are based on the selected Finternet user's profile.
+            </div>
           </div>
+        </div>
+      </EnhancedCard>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>KYC Level</Label>
-              <div className="p-2 bg-gray-50 rounded border">
-                <span
-                  className={`font-medium ${
-                    receiver.kycLevel === 'Full'
-                      ? 'text-green-600'
-                      : receiver.kycLevel === 'Basic'
-                        ? 'text-yellow-600'
-                        : 'text-red-600'
+      {/* Corridor Information */}
+      <EnhancedCard 
+        variant="compliance"
+        elevated
+        icon="🌐"
+        title="Finternet Corridor Rules"
+        subtitle="Compliance requirements for the selected route"
+      >
+        <div className="space-y-4">
+          {currentCorridor && corridorInfo ? (
+            <div className="space-y-4">
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h4 className="font-medium text-blue-800 mb-2">
+                  Current Corridor: {corridorInfo.name}
+                </h4>
+                <p className="text-sm text-blue-700">
+                  {corridorInfo.isActive 
+                    ? '✅ Active corridor with specific compliance rules'
+                    : '❌ Corridor is blocked - no trading allowed'
+                  }
+                </p>
+              </div>
+
+              {corridorInfo.rules.map((rule, index) => (
+                <div key={rule.id} className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                  <h5 className="font-medium text-gray-800 mb-2">
+                    Rule {index + 1}: {rule.description}
+                  </h5>
+                  
+                  <div className="space-y-2 text-sm">
+                    {rule.amountLimit !== undefined && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Amount Limit:</span>
+                        <span className="font-medium">${rule.amountLimit.toLocaleString()}</span>
+                      </div>
+                    )}
+                    
+                    {rule.kycRequirements && (
+                      <div className="space-y-1">
+                        <div className="text-gray-600 font-medium">KYC Requirements:</div>
+                        <div className="pl-4 text-gray-700">
+                          <div>Sender: {rule.kycRequirements.sender}</div>
+                          <div>Receiver: {rule.kycRequirements.receiver}</div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {rule.kycRequirements.description}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {rule.tokenRestrictions && (
+                      <div className="space-y-1">
+                        <div className="text-gray-600 font-medium">Token Restrictions:</div>
+                        <div className="pl-4 text-gray-700">
+                          <div>Allowed: {rule.tokenRestrictions.allowedTokens.join(', ')}</div>
+                          {rule.tokenRestrictions.inflowTokens && (
+                            <div>Inflow: {rule.tokenRestrictions.inflowTokens.join(', ')}</div>
+                          )}
+                          {rule.tokenRestrictions.outflowTokens && (
+                            <div>Outflow: {rule.tokenRestrictions.outflowTokens.join(', ')}</div>
+                          )}
+                          <div className="text-xs text-gray-500 mt-1">
+                            {rule.tokenRestrictions.description}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {rule.amlRequirements && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">AML Threshold:</span>
+                        <span className="font-medium">${rule.amlRequirements.threshold.toLocaleString()}</span>
+                      </div>
+                    )}
+                    
+                    {rule.dualApproval && rule.dualApproval.required && (
+                      <div className="p-2 bg-yellow-50 border border-yellow-200 rounded">
+                        <div className="text-yellow-800 text-sm">
+                          <strong>⚠️ Dual Approval Required:</strong> {rule.dualApproval.description}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {rule.specialNotes && (
+                      <div className="p-2 bg-blue-50 border border-blue-200 rounded">
+                        <div className="text-blue-800 text-sm">
+                          <strong>ℹ️ Note:</strong> {rule.specialNotes}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+              <p className="text-gray-600 text-center">
+                No specific corridor identified for this sender-receiver combination.
+                <br />
+                Basic Finternet compliance rules will apply.
+              </p>
+            </div>
+          )}
+
+          {/* Available Corridors Overview */}
+          <div className="mt-6">
+            <h4 className="font-medium text-gray-800 mb-3">Available Finternet Corridors:</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {activeCorridors.map((corridor) => (
+                <div 
+                  key={corridor.id}
+                  className={`p-3 border rounded-lg text-sm ${
+                    currentCorridor === corridor.id 
+                      ? 'border-blue-300 bg-blue-50' 
+                      : 'border-gray-200 bg-gray-50'
                   }`}
                 >
-                  {receiver.kycLevel}
-                </span>
-              </div>
+                  <div className="font-medium text-gray-800">{corridor.name}</div>
+                  <div className="text-xs text-gray-600">
+                    {corridor.senderJurisdiction} → {corridor.receiverJurisdiction}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {corridor.rules.length} rule{corridor.rules.length !== 1 ? 's' : ''}
+                  </div>
+                </div>
+              ))}
             </div>
-            <div>
-              <Label>Sanctions Status</Label>
-              <div className="p-2 bg-gray-50 rounded border">
-                <span
-                  className={`font-medium ${receiver.isSanctioned ? 'text-red-600' : 'text-green-600'}`}
-                >
-                  {receiver.isSanctioned ? 'Flagged' : 'Clear'}
-                </span>
+          </div>
+        </div>
+      </EnhancedCard>
+
+      {/* Available Finternet Users */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Available Finternet Users</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {getAllFinternetUsers().map((user) => (
+              <div 
+                key={user.finternetId}
+                className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                  senderFinternetId === user.finternetId
+                    ? 'border-green-300 bg-green-50' // Sender (auto-detected)
+                    : receiverFinternetId === user.finternetId
+                    ? 'border-blue-300 bg-blue-50' // Receiver (selected)
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                }`}
+                onClick={() => {
+                  // Only allow setting receiver since sender is auto-detected
+                  if (receiverFinternetId !== user.finternetId) {
+                    setReceiverFinternetId(user.finternetId);
+                  }
+                }}
+              >
+                <div className="flex items-center space-x-2 mb-2">
+                  <span className="text-2xl">{user.flag}</span>
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-900">{user.displayName}</div>
+                    <div className="text-sm text-gray-600 font-mono">{user.finternetId}</div>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className={`px-2 py-1 rounded-full ${
+                    user.kycLevel === 'Full' ? 'bg-green-100 text-green-800' :
+                    user.kycLevel === 'Basic' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-red-100 text-red-800'
+                  }`}>
+                    {user.kycLevel} KYC
+                  </span>
+                  <span className={`px-2 py-1 rounded-full ${
+                    user.isSanctioned ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                  }`}>
+                    {user.isSanctioned ? 'Sanctioned' : 'Clear'}
+                  </span>
+                </div>
+                <div className="mt-2 text-xs text-gray-500">
+                  {user.country} • {user.jurisdiction}
+                </div>
               </div>
+            ))}
+          </div>
+          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+            <div className="text-sm text-blue-700">
+              <strong>Tip:</strong> Click on any user card to quickly set them as receiver. 
+              Sender is automatically detected from your connected wallet.
             </div>
           </div>
         </CardContent>
@@ -555,6 +737,78 @@ export default function PaymentIntentDemo() {
                   <h4 className="font-medium text-gray-700">
                     Validation Details:
                   </h4>
+                  
+                  {/* Corridor Information */}
+                  {validation.metadata.corridorInfo && (
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <h5 className="font-medium text-blue-800 mb-2">
+                        Corridor: {validation.metadata.corridorInfo.name}
+                      </h5>
+                      <div className="text-sm text-blue-700">
+                        Status: {validation.metadata.corridorInfo.isActive ? '✅ Active' : '❌ Blocked'}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Corridor Validation Results */}
+                  {validation.metadata.corridorValidation && (
+                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                      <h5 className="font-medium text-gray-800 mb-2">
+                        Corridor-Specific Validation
+                      </h5>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span>Corridor Status:</span>
+                            <span className={`font-medium ${
+                              validation.metadata.corridorValidation.complianceStatus === 'COMPLIANT' 
+                                ? 'text-green-600' 
+                                : 'text-red-600'
+                            }`}>
+                              {validation.metadata.corridorValidation.complianceStatus}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Amount Limit:</span>
+                            <span className="font-medium">
+                              ${validation.metadata.corridorValidation.amountLimit?.toLocaleString() || 'N/A'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>AML Required:</span>
+                            <span className={`font-medium ${
+                              validation.metadata.corridorValidation.amlRequired ? 'text-yellow-600' : 'text-green-600'
+                            }`}>
+                              {validation.metadata.corridorValidation.amlRequired ? 'Yes' : 'No'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span>Dual Approval:</span>
+                            <span className={`font-medium ${
+                              validation.metadata.corridorValidation.dualApprovalRequired ? 'text-yellow-600' : 'text-green-600'
+                            }`}>
+                              {validation.metadata.corridorValidation.dualApprovalRequired ? 'Required' : 'Not Required'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Rules Applied:</span>
+                            <span className="font-medium">
+                              {validation.metadata.corridorValidation.rulesApplied?.length || 0}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Token Restrictions:</span>
+                            <span className="font-medium text-xs">
+                              {validation.metadata.corridorValidation.tokenRestrictions?.join(', ') || 'None'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <div className="flex justify-between">
@@ -702,6 +956,11 @@ export default function PaymentIntentDemo() {
                 </span>
               </div>
               <div className="flex justify-between">
+                <span className="text-sm text-gray-600">
+                  ({sender.jurisdiction || sender.country})
+                </span>
+              </div>
+              <div className="flex justify-between">
                 <span className="font-medium">Receiver KYC:</span>
                 <span
                   className={
@@ -714,27 +973,53 @@ export default function PaymentIntentDemo() {
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="font-medium">Sender Sanctions:</span>
-                <span
-                  className={
-                    !sender.isSanctioned ? 'text-green-600' : 'text-red-600'
-                  }
-                >
-                  {sender.isSanctioned ? 'Flagged' : 'Clear'}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium">Receiver Sanctions:</span>
-                <span
-                  className={
-                    !receiver.isSanctioned ? 'text-green-600' : 'text-red-600'
-                  }
-                >
-                  {receiver.isSanctioned ? 'Flagged' : 'Clear'}
+                <span className="text-sm text-gray-600">
+                  ({receiver.jurisdiction || receiver.country})
                 </span>
               </div>
             </div>
           </div>
+
+          {/* Corridor Information */}
+          {currentCorridor && corridorInfo && (
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h4 className="font-medium text-blue-800 mb-2">
+                Finternet Corridor: {corridorInfo.name}
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div className="space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Status:</span>
+                    <span className={`font-medium ${
+                      corridorInfo.isActive ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {corridorInfo.isActive ? 'Active' : 'Blocked'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Amount Limit:</span>
+                    <span className="font-medium">
+                      ${corridorInfo.rules[0]?.amountLimit?.toLocaleString() || 'N/A'}
+                    </span>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Token Restrictions:</span>
+                    <span className="font-medium text-xs">
+                      {corridorInfo.rules[0]?.tokenRestrictions?.allowedTokens?.join(', ') || 'None'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Rules Applied:</span>
+                    <span className="font-medium">
+                      {corridorInfo.rules.length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

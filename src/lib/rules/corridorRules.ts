@@ -148,6 +148,87 @@ export const CORRIDOR_CONFIGS: Record<CorridorId, CorridorConfig> = {
         specialNotes: 'Stablecoin must be issued by licensed entity'
       }
     ]
+  },
+
+  INDIA_RUSSIA: {
+    id: 'INDIA_RUSSIA',
+    name: 'India – Russia',
+    senderJurisdiction: 'India',
+    receiverJurisdiction: 'Russia',
+    isActive: true, // Allowed
+    rules: [
+      {
+        id: 'IN_RU_RULE_1',
+        description: 'Can trade up to $200K per transaction',
+        amountLimit: 200000,
+        kycRequirements: {
+          sender: 'Basic',
+          receiver: 'None',
+          description: 'India requires Basic KYC for sender'
+        },
+        tokenRestrictions: {
+          allowedTokens: ['USDC', 'USDT'],
+          description: 'USDC and USDT allowed'
+        },
+        amlRequirements: {
+          threshold: 100000,
+          description: 'AML check required for transactions above $100K'
+        }
+      }
+    ]
+  },
+
+  USA_RUSSIA: {
+    id: 'USA_RUSSIA',
+    name: 'USA – Russia',
+    senderJurisdiction: 'USA',
+    receiverJurisdiction: 'Russia',
+    isActive: false, // Blocked due to US sanctions
+    rules: [
+      {
+        id: 'USA_RU_RULE_1',
+        description: 'Cannot trade due to US sanctions on Russia',
+        amountLimit: 0,
+        kycRequirements: {
+          sender: 'None',
+          receiver: 'None',
+          description: 'Trading blocked between USA and Russia'
+        },
+        tokenRestrictions: {
+          allowedTokens: [],
+          description: 'No tokens allowed for this corridor'
+        },
+        specialNotes: 'Trading is completely blocked due to US sanctions on Russia'
+      }
+    ]
+  },
+
+  USA_INDIA: {
+    id: 'USA_INDIA',
+    name: 'USA – India',
+    senderJurisdiction: 'USA',
+    receiverJurisdiction: 'India',
+    isActive: true, // Allowed
+    rules: [
+      {
+        id: 'USA_IN_RULE_1',
+        description: 'Can trade up to $400K per transaction',
+        amountLimit: 400000,
+        kycRequirements: {
+          sender: 'Full',
+          receiver: 'Basic',
+          description: 'USA requires Full KYC, India requires Basic KYC'
+        },
+        tokenRestrictions: {
+          allowedTokens: ['USDC', 'USDT'],
+          description: 'USDC and USDT allowed'
+        },
+        amlRequirements: {
+          threshold: 75000,
+          description: 'AML check required for transactions above $75K'
+        }
+      }
+    ]
   }
 };
 
@@ -173,7 +254,11 @@ export function determineCorridor(sender: Party, receiver: Party): CorridorId | 
     'SG': 'Singapore',
     'Singapore': 'Singapore',
     'JP': 'Japan',
-    'Japan': 'Japan'
+    'Japan': 'Japan',
+    'IN': 'India',
+    'India': 'India',
+    'RU': 'Russia',
+    'Russia': 'Russia'
   };
   
   const senderJur = jurisdictionMap[senderJurisdiction] || senderJurisdiction;
@@ -243,13 +328,26 @@ export function validateCorridorRules(
     }
     
     // Rule 2: KYC requirements
-    // Check sender KYC requirement
-    if (rule.kycRequirements.sender !== 'None' && sender.kycLevel !== rule.kycRequirements.sender) {
-      reasons.push(`Sender KYC requirement: ${rule.kycRequirements.description} - Current: ${sender.kycLevel}, Required: ${rule.kycRequirements.sender}`);
+    // Check sender KYC requirement - sender must have AT LEAST the required level
+    if (rule.kycRequirements.sender !== 'None') {
+      const kycLevels = ['None', 'Basic', 'Full'];
+      const senderLevelIndex = kycLevels.indexOf(sender.kycLevel);
+      const requiredLevelIndex = kycLevels.indexOf(rule.kycRequirements.sender);
+      
+      if (senderLevelIndex < requiredLevelIndex) {
+        reasons.push(`Sender KYC requirement: ${rule.kycRequirements.description} - Current: ${sender.kycLevel}, Required: ${rule.kycRequirements.sender}`);
+      }
     }
-    // Check receiver KYC requirement (only if specified and not 'None')
-    if (rule.kycRequirements.receiver !== 'None' && receiver.kycLevel !== rule.kycRequirements.receiver) {
-      reasons.push(`Receiver KYC requirement: ${rule.kycRequirements.description} - Current: ${receiver.kycLevel}, Required: ${rule.kycRequirements.receiver}`);
+    
+    // Check receiver KYC requirement - receiver must have AT LEAST the required level
+    if (rule.kycRequirements.receiver !== 'None') {
+      const kycLevels = ['None', 'Basic', 'Full'];
+      const receiverLevelIndex = kycLevels.indexOf(receiver.kycLevel);
+      const requiredLevelIndex = kycLevels.indexOf(rule.kycRequirements.receiver);
+      
+      if (receiverLevelIndex < requiredLevelIndex) {
+        reasons.push(`Receiver KYC requirement: ${rule.kycRequirements.description} - Current: ${receiver.kycLevel}, Required: ${rule.kycRequirements.receiver}`);
+      }
     }
     
     // Rule 3: Token restrictions
@@ -316,3 +414,5 @@ export function getCorridorInfo(corridorId: CorridorId) {
 export function getActiveCorridors(): Array<CorridorConfig> {
   return Object.values(CORRIDOR_CONFIGS).filter(corridor => corridor.isActive);
 }
+
+

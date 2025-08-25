@@ -15,7 +15,7 @@ export const FINTERNET_USERS: Record<string, FinternetUser> = {
     complianceTier: "TIER_1",
     riskScore: "LOW"
   },
-  "praveen@finternet.in": {
+  "praveen@finternet.us": {
     finternetId: "praveen@finternet.us",
     displayName: "Praveen",
     country: "USA",
@@ -100,11 +100,11 @@ export const FINTERNET_USERS: Record<string, FinternetUser> = {
     countryCode: "RU",
     flag: "🇷🇺",
     jurisdiction: "Russia",
-    walletAddress: "0x6789012345678901234567890123456789012345",
+    walletAddress: "0x6ebb62B3Ee588FcF82232E73c3B7bDe84f304D7a",
     kycLevel: "Full",
-    isSanctioned: true,
-    complianceTier: "BLOCKED",
-    riskScore: "CRITICAL"
+    isSanctioned: false,
+    complianceTier: "TIER_2",
+    riskScore: "HIGH"
   },
   "ahmed@finternet.ng": {
     finternetId: "ahmed@finternet.ng",
@@ -131,6 +131,34 @@ export const FINTERNET_USERS: Record<string, FinternetUser> = {
     isSanctioned: false,
     complianceTier: "TIER_1",
     riskScore: "LOW"
+  },
+
+  "raj@finternet.in": {
+    finternetId: "raj@finternet.in",
+    displayName: "Raj",
+    country: "India",
+    countryCode: "IN",
+    flag: "🇮🇳",
+    jurisdiction: "India",
+    walletAddress: "0xe57BA2c705F8868290a4EFC22a83415d4958b3f3",
+    kycLevel: "Full",
+    isSanctioned: false,
+    complianceTier: "TIER_2",
+    riskScore: "MEDIUM"
+  },
+
+  "wei@finternet.cn": {
+    finternetId: "wei@finternet.cn",
+    displayName: "Wei",
+    country: "China",
+    countryCode: "CN",
+    flag: "🇨🇳",
+    jurisdiction: "China",
+    walletAddress: "0x7777777777777777777777777777777777777777",
+    kycLevel: "Basic",
+    isSanctioned: false,
+    complianceTier: "TIER_2",
+    riskScore: "MEDIUM"
   }
 };
 

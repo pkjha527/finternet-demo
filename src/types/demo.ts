@@ -43,7 +43,7 @@ export type Intent = {
 };
 
 // New types for corridor-based rules
-export type CorridorId = 'USA_EU' | 'USA_SINGAPORE' | 'EU_JAPAN' | 'SINGAPORE_JAPAN' | 'EU_SINGAPORE';
+export type CorridorId = 'USA_EU' | 'USA_SINGAPORE' | 'EU_JAPAN' | 'SINGAPORE_JAPAN' | 'EU_SINGAPORE' | 'INDIA_RUSSIA' | 'USA_RUSSIA' | 'USA_INDIA';
 
 export type TokenType = 'USDC' | 'USDT' | 'G20_APPROVED' | 'LICENSED_STABLECOIN';
 

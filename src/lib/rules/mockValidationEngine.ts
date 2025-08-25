@@ -204,6 +204,29 @@ const MOCK_WALLET_DATABASE: Record<string, WalletInfo> = {
     verificationSource: 'Sumsub',
     complianceTier: 'TIER_2',
     specialNotes: 'Enhanced due diligence required'
+  },
+
+  // Add Finternet user wallet addresses
+  '0xe57ba2c705f8868290a4efc22a83415d4958b3f3': {
+    kycLevel: 'Full',
+    isSanctioned: false,
+    riskScore: 'MEDIUM',
+    country: 'IN',
+    jurisdiction: 'India',
+    lastVerified: '2024-01-10T11:20:00.000Z',
+    verificationSource: 'Onfido',
+    complianceTier: 'TIER_2'
+  },
+
+  '0x6ebb62b3ee588fcf82232e73c3b7bde84f304d7a': {
+    kycLevel: 'Full',
+    isSanctioned: false,
+    riskScore: 'HIGH',
+    country: 'RU',
+    jurisdiction: 'Russia',
+    lastVerified: '2024-01-09T16:30:00.000Z',
+    verificationSource: 'Jumio',
+    complianceTier: 'TIER_2'
   }
 };
 
@@ -219,8 +242,8 @@ const BUSINESS_RULES: BusinessRules = {
     description: 'No sanctioned entities allowed'
   },
   geographicRestrictions: {
-    blockedCountries: ['RU', 'IR', 'KP', 'CU'],
-    description: 'Certain countries are restricted'
+    blockedCountries: ['IR', 'KP', 'CU'], // Russia handled by corridor-specific rules
+    description: 'Certain countries are restricted (Russia blocked for USA, allowed for India)'
   },
   riskThresholds: {
     maxRiskScore: 'MEDIUM',
@@ -273,6 +296,14 @@ export async function evaluatePreTx(sender: Party, receiver: Party, amount?: num
   
   const receiverInfo = getWalletInfo(receiver.wallet);
   
+  // Debug: Log what's happening with wallet lookup
+  console.log('🔍 Wallet Lookup Debug:');
+  console.log('  Receiver wallet:', receiver.wallet);
+  console.log('  Receiver wallet (lowercase):', receiver.wallet.toLowerCase());
+  console.log('  Receiver info found:', !!receiverInfo);
+  console.log('  Available wallets:', Object.keys(MOCK_WALLET_DATABASE));
+  console.log('  Direct lookup test:', MOCK_WALLET_DATABASE[receiver.wallet.toLowerCase()]);
+  
   // Determine corridor for this transaction
   const corridorId = determineCorridor(sender, receiver);
   
@@ -283,13 +314,13 @@ export async function evaluatePreTx(sender: Party, receiver: Party, amount?: num
     processingTime: Date.now(),
     validationId: `mock-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     senderKycStatus: 'PASSED',
-    receiverKycStatus: 'UNKNOWN',
+    receiverKycStatus: receiverInfo ? 'PASSED' : 'FAILED',
     senderSanctionsStatus: 'CLEAR',
-    receiverSanctionsStatus: 'UNKNOWN',
+    receiverSanctionsStatus: receiverInfo ? (receiverInfo.isSanctioned ? 'FLAGGED' : 'CLEAR') : 'UNKNOWN',
     senderGeographicStatus: 'ALLOWED',
-    receiverGeographicStatus: 'UNKNOWN',
+    receiverGeographicStatus: receiverInfo ? 'ALLOWED' : 'UNKNOWN',
     senderRiskStatus: 'ACCEPTABLE',
-    receiverRiskStatus: 'UNKNOWN',
+    receiverRiskStatus: receiverInfo ? (receiverInfo.riskScore === 'CRITICAL' ? 'EXCEEDED' : 'ACCEPTABLE') : 'UNKNOWN',
     senderDetails: {
       wallet: sender.wallet,
       kycLevel: sender.kycLevel,
@@ -299,10 +330,21 @@ export async function evaluatePreTx(sender: Party, receiver: Party, amount?: num
       verificationSource: 'Wallet Connection',
       note: 'Connected wallet - treated as compliant'
     },
-    receiverDetails: null,
+    receiverDetails: receiverInfo ? {
+      country: receiverInfo.country,
+      riskScore: receiverInfo.riskScore,
+      complianceTier: receiverInfo.complianceTier,
+      lastVerified: receiverInfo.lastVerified,
+      verificationSource: receiverInfo.verificationSource
+    } : null,
     overallRiskScore: 'LOW',
-    complianceStatus: 'COMPLIANT'
+    complianceStatus: reasons.length === 0 ? 'COMPLIANT' : 'NON_COMPLIANT'
   };
+  
+  // Check if receiver wallet is found in compliance database
+  if (!receiverInfo) {
+    reasons.push('Receiver wallet not found in compliance database');
+  }
   
   // Add corridor information if available
   if (corridorId) {
@@ -366,7 +408,7 @@ export async function evaluatePreTx(sender: Party, receiver: Party, amount?: num
   
   // Receiver validation
   if (receiverInfo === null) {
-    reasons.push('Receiver wallet not found in compliance database');
+    // Error already added above, just set status
     metadata.receiverKycStatus = 'FAILED';
   } else {
     // Set receiver details

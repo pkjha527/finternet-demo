@@ -87,6 +87,7 @@ export default function PaymentIntentDemo() {
   >('setup')
   const [showWalletPopup, setShowWalletPopup] = useState(false)
 
+
   // Determine current corridor
   const currentCorridor = determineCorridor(sender, receiver)
   const corridorInfo = currentCorridor ? getCorridorInfo(currentCorridor) : null
@@ -114,7 +115,7 @@ export default function PaymentIntentDemo() {
     }
   }, [wallets, provider])
 
-  
+
 
   const setupProvider = async () => {
     if (wallets.length > 0) {
@@ -1076,6 +1077,7 @@ export default function PaymentIntentDemo() {
                             'Opening Nexus Transfer with receiver:',
                             receiverAddr,
                           )
+
                           onClick()
                         } else {
                           console.error(
@@ -1120,6 +1122,7 @@ export default function PaymentIntentDemo() {
                             'Opening Nexus Bridge with receiver:',
                             receiverAddr,
                           )
+
                           onClick()
                         } else {
                           console.error(
@@ -1267,6 +1270,8 @@ export default function PaymentIntentDemo() {
       
       {/* Wallet Connection Popup */}
       {renderWalletConnectionPopup()}
+
+
     </div>
   )
 }

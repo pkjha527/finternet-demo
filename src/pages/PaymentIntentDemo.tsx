@@ -9,7 +9,7 @@ import { evaluatePreTx } from '../lib/rules/engine.min'
 import { getAvailableTestWallets } from '../lib/rules/mockValidationEngine'
 import { useNexusTransfer } from '../hooks/useNexusTransfer'
 import { determineCorridor, getActiveCorridors, getCorridorInfo } from '../lib/rules/corridorRules'
-import type { FinternetUser, IntentSide, Party } from '../types/demo'
+import type { IntentSide, Party } from '../types/demo'
 import FinternetIdInput from '../components/ui/finternet-id-input'
 import EnhancedUserProfile from '../components/ui/enhanced-user-profile'
 import EnhancedCard from '../components/ui/enhanced-card'
@@ -24,8 +24,9 @@ export default function PaymentIntentDemo() {
   const { setProvider, provider, sdk } = useNexus()
   const { isPreparing, openTransfer, openBridge } = useNexusTransfer()
 
+  console.log('wallets', getAvailableTestWallets())
+
   // Get available test wallets
-  const availableWallets = getAvailableTestWallets()
   const activeCorridors = getActiveCorridors()
 
   const [receiverFinternetId, setReceiverFinternetId] = useState<string>('maria@finternet.sg')
@@ -72,7 +73,7 @@ export default function PaymentIntentDemo() {
   }
   const [side, setSide] = useState<IntentSide>('USDC_TO_USDT')
   const [amount, setAmount] = useState<number>(5)
-  const [receiverAddr, setReceiverAddr] = useState<string>(
+  const [receiverAddr] = useState<string>(
     '0x2345678901234567890123456789012345678901',
   )
   const [validation, setValidation] = useState<{
@@ -113,18 +114,7 @@ export default function PaymentIntentDemo() {
     }
   }, [wallets, provider])
 
-  // Helper function to update receiver when wallet changes
-  const updateReceiverFromWallet = (walletAddress: string) => {
-    const walletInfo = availableWallets.find((w) => w.address === walletAddress)
-    if (walletInfo) {
-      // Update receiver address for transactions
-      setReceiverAddr(walletAddress)
-    }
-  } 
-
-  const openWalletConnectionPopup = () => {
-    setShowWalletPopup(true)
-  }
+  
 
   const setupProvider = async () => {
     if (wallets.length > 0) {

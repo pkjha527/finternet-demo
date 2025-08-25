@@ -10,7 +10,7 @@ interface ProgressStep {
 }
 
 interface ProgressFlowProps {
-  steps: ProgressStep[];
+  steps: Array<ProgressStep>;
   currentStep: string;
   className?: string;
   showConnectors?: boolean;
@@ -45,12 +45,7 @@ export function ProgressFlow({
           icon: 'bg-blue-500 text-white animate-pulse',
           connector: 'bg-blue-300'
         };
-      case 'error':
-        return {
-          container: 'bg-red-100 border-red-300 text-red-700',
-          icon: 'bg-red-500 text-white',
-          connector: 'bg-red-300'
-        };
+
       default:
         return {
           container: 'bg-gray-100 border-gray-300 text-gray-500',

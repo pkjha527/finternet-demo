@@ -1,22 +1,24 @@
-import { useEffect, useState } from 'react'
-import { usePrivy, useWallets } from '@privy-io/react-auth'
 import { BridgeButton, TransferButton, useNexus } from '@avail-project/nexus/ui'
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
+import { usePrivy, useWallets } from '@privy-io/react-auth'
+import { useEffect, useState } from 'react'
 import { Button } from '../components/ui/button'
-import { Label } from '../components/ui/label'
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
+import ComplianceStatus from '../components/ui/compliance-status'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog'
+import EnhancedCard from '../components/ui/enhanced-card'
+import EnhancedUserProfile from '../components/ui/enhanced-user-profile'
+import FinternetIdInput from '../components/ui/finternet-id-input'
+import { Label } from '../components/ui/label'
+import ProgressFlow from '../components/ui/progress-flow'
+import { useNexusTransfer } from '../hooks/useNexusTransfer'
+import { findUserByWalletAddress, getAllFinternetUsers, isBungeeUser, resolveFinternetId } from '../lib/constants/finternetUsers'
+import { determineCorridor, getActiveCorridors, getCorridorInfo } from '../lib/rules/corridorRules'
 import { evaluatePreTx } from '../lib/rules/engine.min'
 import { getAvailableTestWallets } from '../lib/rules/mockValidationEngine'
-import { useNexusTransfer } from '../hooks/useNexusTransfer'
-import { determineCorridor, getActiveCorridors, getCorridorInfo } from '../lib/rules/corridorRules'
-import type { IntentSide, Party } from '../types/demo'
-import FinternetIdInput from '../components/ui/finternet-id-input'
-import EnhancedUserProfile from '../components/ui/enhanced-user-profile'
-import EnhancedCard from '../components/ui/enhanced-card'
-import ComplianceStatus from '../components/ui/compliance-status'
-import ProgressFlow from '../components/ui/progress-flow'
+
 import WalletConnection from '@/components/connect-wallet'
-import { findUserByWalletAddress, getAllFinternetUsers, resolveFinternetId } from '../lib/constants/finternetUsers'
+import { ManualRoutingSection } from '../components/ManualRoutingSection'
+import type { IntentSide, Party } from '../types/demo'
 
 export default function PaymentIntentDemo() {
   const { authenticated } = usePrivy()
@@ -86,6 +88,7 @@ export default function PaymentIntentDemo() {
     'setup' | 'validation' | 'transfer'
   >('setup')
   const [showWalletPopup, setShowWalletPopup] = useState(false)
+  const [nexusButtonClicked, setNexusButtonClicked] = useState(false)
 
 
   // Determine current corridor
@@ -912,14 +915,22 @@ export default function PaymentIntentDemo() {
     </div>
   )
 
-  const renderTransferStep = () => (
-    <div className="space-y-6">
-      <div className="text-center">
-        <h1 className="text-3xl font-bold mb-2">Execute Finternet-Compliant Transfer</h1>
-        <p className="text-lg text-muted-foreground">
-          Use Nexus UI to complete the Finternet-compliant USDC ↔ USDT transfer
-        </p>
-      </div>
+  const renderTransferStep = () => {
+    // Determine transfer type using isBungeeUser
+    const isSameChain = isBungeeUser(senderFinternetId, receiverFinternetId);
+    const transferType = isSameChain ? 'same-chain' : 'cross-chain';
+    
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold mb-2">Execute Finternet-Compliant Transfer</h1>
+          <p className="text-lg text-muted-foreground">
+            {isSameChain 
+              ? 'Use Nexus UI for same-chain USDC ↔ USDT transfer'
+              : 'Use Socket/Bungee for cross-chain USDC ↔ USDT transfer'
+            }
+          </p>
+        </div>
 
       {/* Transfer Summary */}
       <Card>
@@ -1033,146 +1044,200 @@ export default function PaymentIntentDemo() {
         </CardContent>
       </Card>
 
-      {/* Nexus Transfer UI with Auto-populated Receiver */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Nexus Transfer Interface</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-card rounded-lg border border-gray-400 p-6 shadow-sm text-center">
-                <h3 className="text-lg font-semibold mb-4">Transfer Tokens</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Use Nexus to transfer{' '}
-                  {side === 'USDC_TO_USDT' ? 'USDC to USDT' : 'USDT to USDC'}
-                </p>
-                <p className="text-xs text-blue-600 mb-3">
-                  Receiver: {receiverAddr.slice(0, 8)}...
-                  {receiverAddr.slice(-6)}
-                </p>
-                <TransferButton
-                  prefill={{
-                    recipient: receiver?.wallet as `0x${string}`,
-                    amount: amount,
-                    token: side === 'USDC_TO_USDT' ? 'USDC' : 'USDT',
-                  }}
-                >
-                  {({ onClick, isLoading }) => (
-                    <Button
-                      onClick={async () => {
-                        // Prepare transfer parameters and open Nexus
-                        const transferParams = {
-                          direction: side,
-                          amount: amount,
-                          sender: sender.wallet,
-                          receiver: receiverAddr,
-                          complianceStatus: 'VALIDATED',
-                        }
 
-                        const result = await openTransfer(transferParams)
-                        if (result.success) {
-                          // Auto-populate receiver address in Nexus
-                          console.log(
-                            'Opening Nexus Transfer with receiver:',
-                            receiverAddr,
-                          )
 
-                          onClick()
-                        } else {
-                          console.error(
-                            'Failed to prepare transfer:',
-                            result.message,
-                          )
-                        }
-                      }}
-                      disabled={isLoading || isPreparing}
-                      className="w-full font-bold rounded-lg"
-                    >
-                      {isLoading || isPreparing
-                        ? 'Preparing...'
-                        : 'Open Transfer'}
-                    </Button>
-                  )}
-                </TransferButton>
-              </div>
+      {/* Conditional UI based on transfer type */}
+      {isSameChain ? (
+        // Same-chain transfer: Show Nexus Transfer UI
+        <Card>
+          <CardHeader>
+            <CardTitle>Nexus Transfer Interface (Same-Chain)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-card rounded-lg border border-gray-400 p-6 shadow-sm text-center">
+                  <h3 className="text-lg font-semibold mb-4">Transfer Tokens</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Use Nexus to transfer{' '}
+                    {side === 'USDC_TO_USDT' ? 'USDC to USDT' : 'USDT to USDC'}
+                  </p>
+                  <p className="text-xs text-blue-600 mb-3">
+                    Receiver: {receiverAddr.slice(0, 8)}...
+                    {receiverAddr.slice(-6)}
+                  </p>
+                  <TransferButton
+                    prefill={{
+                      recipient: receiver.wallet as `0x${string}`,
+                      amount: amount,
+                      token: side === 'USDC_TO_USDT' ? 'USDC' : 'USDT',
+                    }}
+                  >
+                    {({ onClick, isLoading }) => (
+                      <Button
+                        onClick={async () => {
+                          // Prepare transfer parameters and open Nexus
+                          const transferParams = {
+                            direction: side,
+                            amount: amount,
+                            sender: sender.wallet,
+                            receiver: receiverAddr,
+                            complianceStatus: 'VALIDATED',
+                          }
 
-              <div className="bg-card rounded-lg border border-gray-400 p-6 shadow-sm text-center">
-                <h3 className="text-lg font-semibold mb-4">Bridge Tokens</h3>
-                <p className="text-sm text-muted-foreground mb-4 text-balance">
-                  Bridge tokens across different chains using Nexus
-                </p>
-                <BridgeButton>
-                  {({ onClick, isLoading }) => (
-                    <Button
-                      onClick={async () => {
-                        // Prepare bridge parameters and open Nexus
-                        const bridgeParams = {
-                          direction: side,
-                          amount: amount,
-                          sender: sender.wallet,
-                          receiver: receiverAddr,
-                          complianceStatus: 'VALIDATED',
-                        }
+                          const result = await openTransfer(transferParams)
+                          if (result.success) {
+                            // Auto-populate receiver address in Nexus
+                            console.log(
+                              'Opening Nexus Transfer with receiver:',
+                              receiverAddr,
+                            )
 
-                        const result = await openBridge(bridgeParams)
-                        if (result.success) {
-                          // Auto-populate receiver address in Nexus
-                          console.log(
-                            'Opening Nexus Bridge with receiver:',
-                            receiverAddr,
-                          )
+                            onClick()
+                          } else {
+                            console.error(
+                              'Failed to prepare transfer:',
+                              result.message,
+                            )
+                          }
+                        }}
+                        disabled={isLoading || isPreparing}
+                        className="w-full font-bold rounded-lg"
+                      >
+                        {isLoading || isPreparing
+                          ? 'Preparing...'
+                          : 'Open Transfer'}
+                      </Button>
+                    )}
+                  </TransferButton>
+                </div>
 
-                          onClick()
-                        } else {
-                          console.error(
-                            'Failed to prepare bridge:',
-                            result.message,
-                          )
-                        }
-                      }}
-                      disabled={isLoading || isPreparing}
-                      className="w-full font-bold rounded-lg"
-                    >
-                      {isLoading || isPreparing
-                        ? 'Preparing...'
-                        : 'Open Bridge'}
-                    </Button>
-                  )}
-                </BridgeButton>
-              </div>
-            </div>
+                <div className="bg-card rounded-lg border border-gray-400 p-6 shadow-sm text-center">
+                  <h3 className="text-lg font-semibold mb-4">Bridge Tokens</h3>
+                  <p className="text-sm text-muted-foreground mb-4 text-balance">
+                    Bridge tokens across different chains using Nexus
+                  </p>
+                  <BridgeButton>
+                    {({ onClick, isLoading }) => (
+                      <Button
+                        onClick={async () => {
+                          // Prepare bridge parameters and open Nexus
+                          const bridgeParams = {
+                            direction: side,
+                            amount: amount,
+                            sender: sender.wallet,
+                            receiver: receiverAddr,
+                            complianceStatus: 'VALIDATED',
+                          }
 
-            <div className="text-center space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Both transfer and bridge operations will respect the Finternet
-                compliance rules we validated.
-                <br />
-                <strong>
-                  Receiver address is automatically populated:
-                </strong>{' '}
-                {receiverAddr}
-              </p>
-              <div className="flex gap-4 justify-center">
-                <Button
-                  onClick={() => setCurrentStep('setup')}
-                  variant="outline"
-                >
-                  ← Back to Setup
-                </Button>
-                <Button
-                  onClick={() => setCurrentStep('validation')}
-                  variant="outline"
-                >
-                  ← Back to Validation
-                </Button>
+                          const result = await openBridge(bridgeParams)
+                          if (result.success) {
+                            // Auto-populate receiver address in Nexus
+                            console.log(
+                              'Opening Nexus Bridge with receiver:',
+                              receiverAddr,
+                            )
+
+                            onClick()
+                          } else {
+                            console.error(
+                              'Failed to prepare bridge:',
+                              result.message,
+                            )
+                          }
+                        }}
+                        disabled={isLoading || isPreparing}
+                        className="w-full font-bold rounded-lg"
+                      >
+                        {isLoading || isPreparing
+                          ? 'Preparing...'
+                          : 'Open Bridge'}
+                      </Button>
+                    )}
+                  </BridgeButton>
+                </div>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      ) : (
+        // Cross-chain transfer: Show Manual Routing Section
+        <ManualRoutingSection
+          senderAddress={senderFinternetId}
+          receiverAddress={receiverFinternetId}
+          amount={amount}
+          onRouteSelected={(route) => {
+            console.log('Manual route selected:', route);
+            // You can update the state or trigger a transfer here
+          }}
+          onExecuteNexus={async (params) => {
+            console.log('🔍 onExecuteNexus called with params:', params);
+            console.log('🔍 Current side:', side);
+            console.log('🔍 Sender wallet:', sender.wallet);
+            console.log('🔍 Receiver address:', receiverAddr);
+            
+            try {
+              // Check if we have the required data for Nexus transfer
+              if (!sender.wallet || !receiverAddr || !amount) {
+                console.error('❌ Missing required data for Nexus transfer');
+                alert('Missing required data for transfer. Please ensure sender wallet, receiver address, and amount are set.');
+                return;
+              }
+              
+              // Determine the token to transfer based on the side
+              const tokenToTransfer = side === 'USDC_TO_USDT' ? 'USDC' : 'USDT';
+              
+              console.log('🚀 Opening Nexus transfer with:', {
+                sender: sender.wallet,
+                receiver: receiverAddr,
+                amount: amount,
+                token: tokenToTransfer
+              });
+              
+              // Call the openTransfer function from our Nexus hooks
+              const transferResult = await openTransfer({
+                direction: side,
+                amount: amount,
+                sender: sender.wallet,
+                receiver: receiverAddr,
+                complianceStatus: 'COMPLIANT' // You might want to get this from validation
+              });
+              
+              if (transferResult.success) {
+                console.log('✅ Transfer prepared successfully via Nexus hooks');
+                console.log('ℹ️ Note: The actual Nexus transfer UI opening needs to be implemented');
+                console.log('ℹ️ This could be done by:');
+                console.log('ℹ️ 1. Using the Nexus SDK directly with correct parameters');
+                console.log('ℹ️ 2. Rendering a Nexus transfer component');
+                console.log('ℹ️ 3. Using a different method from the Nexus hooks');
+                
+                // For now, show a success message to the user
+                alert('Transfer prepared successfully! The Nexus transfer UI opening needs to be implemented.');
+              } else {
+                throw new Error(transferResult.message || 'Failed to prepare transfer');
+              }
+              
+            } catch (error) {
+              console.error('❌ Failed to open Nexus transfer:', error);
+              const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+              alert(`Failed to open Nexus transfer: ${errorMessage}`);
+            }
+          }}
+          onExecuteSocket={(params) => {
+            console.log('Executing Socket transfer:', params);
+            // For now, show a message that Socket is not yet implemented
+            alert('Socket transfer execution is not yet implemented. This would use Socket protocol for cross-chain transfers ≥$100.');
+          }}
+          onExecuteBungee={(route) => {
+            console.log('Executing Bungee transfer:', route);
+            // For now, show a message that Bungee execution is not yet implemented
+            alert('Bungee transfer execution is not yet implemented. This would execute the selected route with efficiency scoring.');
+          }}
+                />
+      )}
     </div>
   )
+}
 
   // Wallet Connection Popup
   const renderWalletConnectionPopup = () => (

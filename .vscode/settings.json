@@ -1,11 +1,34 @@
 {
-  "files.watcherExclude": {
-    "**/routeTree.gen.ts": true
+  "typescript.preferences.includePackageJsonAutoImports": "on",
+  "typescript.suggest.autoImports": true,
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "explicit"
+  },
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+  "debug.console.fontSize": 14,
+  "debug.console.lineHeight": 1.4,
+  "debug.inlineValues": "on",
+  "debug.showBreakpointsInOverviewRuler": true,
+  "debug.showInlineBreakpointCandidates": true,
+  "files.associations": {
+    "*.tsx": "typescriptreact",
+    "*.ts": "typescript"
   },
   "search.exclude": {
-    "**/routeTree.gen.ts": true
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/.git": true
   },
-  "files.readonlyInclude": {
-    "**/routeTree.gen.ts": true
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/.git": true
   }
 }

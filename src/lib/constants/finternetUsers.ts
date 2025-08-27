@@ -13,7 +13,19 @@ export const FINTERNET_USERS: Record<string, FinternetUser> = {
     kycLevel: "Full",
     isSanctioned: false,
     complianceTier: "TIER_1",
-    riskScore: "LOW"
+    riskScore: "LOW",
+    supportedChains: [
+      { chainId: 137, chainName: "Polygon", chainLogo: "MATIC", isDefault: false }
+    ],
+    supportedTokens: [
+      { symbol: "USDT", address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", decimals: 6, chainId: 1, name: "Tether USD", isDefault: true },
+      { symbol: "USDC", address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", decimals: 6, chainId: 1, name: "USD Coin", isDefault: false }
+    ],
+    routingPreferences: {
+      preferredBridge: "auto",
+      autoUseSocket: false,
+      socketThreshold: 1000
+    }
   },
   "praveen@finternet.us": {
     finternetId: "praveen@finternet.us",
@@ -26,7 +38,18 @@ export const FINTERNET_USERS: Record<string, FinternetUser> = {
     kycLevel: "Full",
     isSanctioned: false,
     complianceTier: "TIER_1",
-    riskScore: "LOW"
+    riskScore: "LOW",
+    supportedChains: [
+      { chainId: 1, chainName: "Ethereum", chainLogo: "ETH", isDefault: true },
+    ],
+    supportedTokens: [
+      { symbol: "USDC", address: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", decimals: 6, chainId: 1, name: "USDC", isDefault: true },
+    ],
+    routingPreferences: {
+      preferredBridge: "socket",
+      autoUseSocket: true,
+      socketThreshold: 100 // Use Socket for transfers above $100
+    }
   },
   "john@finternet.us": {
     finternetId: "john@finternet.us",
@@ -39,7 +62,18 @@ export const FINTERNET_USERS: Record<string, FinternetUser> = {
     kycLevel: "Full",
     isSanctioned: false,
     complianceTier: "TIER_1",
-    riskScore: "LOW"
+    riskScore: "LOW",
+    supportedChains: [
+      { chainId: 1, chainName: "Ethereum", chainLogo: "ETH", isDefault: true }
+    ],
+    supportedTokens: [
+      { symbol: "USDT", address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", decimals: 6, chainId: 1, name: "Tether USD", isDefault: true }
+    ],
+    routingPreferences: {
+      preferredBridge: "auto",
+      autoUseSocket: false,
+      socketThreshold: 1000
+    }
   },
   "maria@finternet.sg": {
     finternetId: "maria@finternet.sg",
@@ -52,7 +86,19 @@ export const FINTERNET_USERS: Record<string, FinternetUser> = {
     kycLevel: "Full",
     isSanctioned: false,
     complianceTier: "TIER_1",
-    riskScore: "LOW"
+    riskScore: "LOW",
+    supportedChains: [
+      { chainId: 1, chainName: "Ethereum", chainLogo: "ETH", isDefault: true },
+      { chainId: 137, chainName: "Polygon", chainLogo: "MATIC", isDefault: false }
+    ],
+    supportedTokens: [
+      { symbol: "USDT", address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", decimals: 6, chainId: 1, name: "Tether USD", isDefault: true }
+    ],
+    routingPreferences: {
+      preferredBridge: "auto",
+      autoUseSocket: false,
+      socketThreshold: 1000
+    }
   },
   "hans@finternet.de": {
     finternetId: "hans@finternet.de",
@@ -65,7 +111,18 @@ export const FINTERNET_USERS: Record<string, FinternetUser> = {
     kycLevel: "Full",
     isSanctioned: false,
     complianceTier: "TIER_2",
-    riskScore: "MEDIUM"
+    riskScore: "MEDIUM",
+    supportedChains: [
+      { chainId: 1, chainName: "Ethereum", chainLogo: "ETH", isDefault: true }
+    ],
+    supportedTokens: [
+      { symbol: "USDT", address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", decimals: 6, chainId: 1, name: "Tether USD", isDefault: true }
+    ],
+    routingPreferences: {
+      preferredBridge: "auto",
+      autoUseSocket: false,
+      socketThreshold: 1000
+    }
   },
   "yuki@finternet.jp": {
     finternetId: "yuki@finternet.jp",
@@ -78,7 +135,18 @@ export const FINTERNET_USERS: Record<string, FinternetUser> = {
     kycLevel: "Basic",
     isSanctioned: false,
     complianceTier: "TIER_2",
-    riskScore: "MEDIUM"
+    riskScore: "MEDIUM",
+    supportedChains: [
+      { chainId: 1, chainName: "Ethereum", chainLogo: "ETH", isDefault: true }
+    ],
+    supportedTokens: [
+      { symbol: "USDT", address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", decimals: 6, chainId: 1, name: "Tether USD", isDefault: true }
+    ],
+    routingPreferences: {
+      preferredBridge: "auto",
+      autoUseSocket: false,
+      socketThreshold: 1000
+    }
   },
   "carlos@finternet.br": {
     finternetId: "carlos@finternet.br",
@@ -91,7 +159,18 @@ export const FINTERNET_USERS: Record<string, FinternetUser> = {
     kycLevel: "Basic",
     isSanctioned: false,
     complianceTier: "TIER_3",
-    riskScore: "HIGH"
+    riskScore: "HIGH",
+    supportedChains: [
+      { chainId: 1, chainName: "Ethereum", chainLogo: "ETH", isDefault: true }
+    ],
+    supportedTokens: [
+      { symbol: "USDT", address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", decimals: 6, chainId: 1, name: "Tether USD", isDefault: true }
+    ],
+    routingPreferences: {
+      preferredBridge: "auto",
+      autoUseSocket: false,
+      socketThreshold: 1000
+    }
   },
   "vladimir@finternet.ru": {
     finternetId: "vladimir@finternet.ru",
@@ -104,7 +183,18 @@ export const FINTERNET_USERS: Record<string, FinternetUser> = {
     kycLevel: "Full",
     isSanctioned: false,
     complianceTier: "TIER_2",
-    riskScore: "HIGH"
+    riskScore: "HIGH",
+    supportedChains: [
+      { chainId: 1, chainName: "Ethereum", chainLogo: "ETH", isDefault: true }
+    ],
+    supportedTokens: [
+      { symbol: "USDT", address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", decimals: 6, chainId: 1, name: "Tether USD", isDefault: true }
+    ],
+    routingPreferences: {
+      preferredBridge: "auto",
+      autoUseSocket: false,
+      socketThreshold: 1000
+    }
   },
   "ahmed@finternet.ng": {
     finternetId: "ahmed@finternet.ng",
@@ -117,7 +207,14 @@ export const FINTERNET_USERS: Record<string, FinternetUser> = {
     kycLevel: "Basic",
     isSanctioned: true,
     complianceTier: "BLOCKED",
-    riskScore: "CRITICAL"
+    riskScore: "CRITICAL",
+    supportedChains: [],
+    supportedTokens: [],
+    routingPreferences: {
+      preferredBridge: "auto",
+      autoUseSocket: false,
+      socketThreshold: 1000
+    }
   },
   "sophie@finternet.fr": {
     finternetId: "sophie@finternet.fr",
@@ -130,7 +227,18 @@ export const FINTERNET_USERS: Record<string, FinternetUser> = {
     kycLevel: "Full",
     isSanctioned: false,
     complianceTier: "TIER_1",
-    riskScore: "LOW"
+    riskScore: "LOW",
+    supportedChains: [
+      { chainId: 1, chainName: "Ethereum", chainLogo: "ETH", isDefault: true }
+    ],
+    supportedTokens: [
+      { symbol: "USDT", address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", decimals: 6, chainId: 1, name: "Tether USD", isDefault: true }
+    ],
+    routingPreferences: {
+      preferredBridge: "auto",
+      autoUseSocket: false,
+      socketThreshold: 1000
+    }
   },
 
   "raj@finternet.in": {
@@ -144,7 +252,18 @@ export const FINTERNET_USERS: Record<string, FinternetUser> = {
     kycLevel: "Full",
     isSanctioned: false,
     complianceTier: "TIER_2",
-    riskScore: "MEDIUM"
+    riskScore: "MEDIUM",
+    supportedChains: [
+      { chainId: 8453, chainName: "Base", chainLogo: "BASE", isDefault: true },
+    ],
+    supportedTokens: [
+      { symbol: "USDT", address: "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2", decimals: 6, chainId: 8453, name: "Tether USD", isDefault: true },
+    ],
+    routingPreferences: {
+      preferredBridge: "socket",
+      autoUseSocket: true,
+      socketThreshold: 100 // Use Socket for transfers above $100
+    }
   },
 
   "wei@finternet.cn": {
@@ -158,7 +277,18 @@ export const FINTERNET_USERS: Record<string, FinternetUser> = {
     kycLevel: "Basic",
     isSanctioned: false,
     complianceTier: "TIER_2",
-    riskScore: "MEDIUM"
+    riskScore: "MEDIUM",
+    supportedChains: [
+      { chainId: 1, chainName: "Ethereum", chainLogo: "ETH", isDefault: true }
+    ],
+    supportedTokens: [
+      { symbol: "USDT", address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", decimals: 6, chainId: 1, name: "Tether USD", isDefault: true }
+    ],
+    routingPreferences: {
+      preferredBridge: "auto",
+      autoUseSocket: false,
+      socketThreshold: 1000
+    }
   }
 };
 
@@ -192,4 +322,23 @@ export function getCompliantUsers(): Array<FinternetUser> {
 
 export function getBlockedUsers(): Array<FinternetUser> {
   return Object.values(FINTERNET_USERS).filter(user => user.complianceTier === "BLOCKED");
+}
+
+export function isBungeeUser(sender: string, receiver: string): boolean {
+  const senderUser = resolveFinternetId(sender);
+  const receiverUser = resolveFinternetId(receiver);
+  if (!senderUser || !receiverUser) {
+    throw new Error("Sender or receiver not found");
+  }
+  
+  // Check if both users have supported chains
+  if (senderUser.supportedChains.length === 0 || receiverUser.supportedChains.length === 0) {
+    return false; // Default to cross-chain if no chain info
+  }
+  
+  // Compare their default chain IDs (not token addresses)
+  const senderDefaultChain = senderUser.supportedChains.find(chain => chain.isDefault) || senderUser.supportedChains[0];
+  const receiverDefaultChain = receiverUser.supportedChains.find(chain => chain.isDefault) || receiverUser.supportedChains[0];
+  
+  return senderDefaultChain.chainId === receiverDefaultChain.chainId; // true for same-chain, false for cross-chain
 }

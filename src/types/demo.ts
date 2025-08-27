@@ -24,6 +24,26 @@ export type FinternetUser = {
   isSanctioned: boolean;
   complianceTier: ComplianceTier;
   riskScore: RiskScore;
+  // New fields for automatic routing
+  supportedChains: Array<{
+    chainId: number;
+    chainName: string;
+    chainLogo: string;
+    isDefault: boolean;
+  }>;
+  supportedTokens: Array<{
+    symbol: string;
+    address: string;
+    decimals: number;
+    chainId: number;
+    name: string;
+    isDefault: boolean;
+  }>;
+  routingPreferences: {
+    preferredBridge: 'socket' | 'bungee' | 'nexus' | 'auto';
+    autoUseSocket: boolean; // Automatically use Socket for cross-chain transfers
+    socketThreshold: number; // Amount threshold to trigger Socket usage
+  };
 };
 
 export type FinternetParty = {
@@ -46,6 +66,14 @@ export type Intent = {
 export type CorridorId = 'USA_EU' | 'USA_SINGAPORE' | 'EU_JAPAN' | 'SINGAPORE_JAPAN' | 'EU_SINGAPORE' | 'INDIA_RUSSIA' | 'USA_RUSSIA' | 'USA_INDIA';
 
 export type TokenType = 'USDC' | 'USDT' | 'G20_APPROVED' | 'LICENSED_STABLECOIN';
+
+export type TokenLike = {
+  symbol: string;
+  address: string;
+  decimals: number;
+  chainId: number;
+  name: string;
+};
 
 export type CorridorRule = {
   id: string;
